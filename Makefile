@@ -1,6 +1,6 @@
 -include .env
 
-.PHONY: build test local-key base-sepolia-key deploy anvil install update
+.PHONY: build test local-key base-sepolia-key deploy anvil install update doc
 
 # Capture the network name
 network := $(word 2, $(MAKECMDGOALS))
@@ -44,6 +44,10 @@ key:
 # Default to local network if no network is specified
 deploy:
 	forge script ./script/Deploy.s.sol:Deploy $(NETWORK_ARGS)
+
+# Generate contract documentation under docs dir. You can also see the docs on http://localhost:4000
+doc:
+	forge doc
 
 # TODO: forge-verify
 

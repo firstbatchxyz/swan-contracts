@@ -10,6 +10,10 @@ Compile the contracts:
 make build
 ```
 
+> [!NOTE]
+>
+> Please prepare a valid `.env` according to `.env.example` before running tests.
+
 Run tests on forked base-sepolia:
 
 ```sh
@@ -28,10 +32,10 @@ You can see coverages under the coverage directory.
 
 ## Storage Layout
 
-Create storage layout with:
+Get storage layout with:
 
 ```sh
-bash coverage.sh
+bash storage.sh
 ```
 
 You can see storage layouts under the storage directory.
@@ -52,7 +56,7 @@ Create keystores for deployment. [See more for keystores](https://eips.ethereum.
 make local-key
 ```
 
-or for base-sepolia
+or for Base Sepolia
 
 ```sh
 make base-sepolia-key
@@ -79,7 +83,7 @@ make anvil
 ```
 
 **Step 5.**
-Deploy the contracts on localhost (forked Base Sepolia) using Deploy script:
+Deploy the contracts on localhost (forked Base Sepolia by default) using Deploy script:
 
 ```sh
 make deploy
@@ -101,4 +105,12 @@ Take the gas snapshot with:
 make snapshot
 ```
 
-You can see the snapshot `.gas-snapshot` in the current directory.
+You can see the snapshot `.gas-snapshot` file in the current directory.
+
+## Generate documentation
+
+```sh
+make doc
+```
+
+You can see the documentation under the `docs/` directory.
