@@ -26,10 +26,6 @@ build:
 snapshot:
 	forge snapshot
 
-# Generate the documentation under docs directory
-docs:
-	forge doc
-
 # Test the contracts on forked base-sepolia network
 test:
 	forge clean && forge test --fork-url $(BASE_TEST_RPC_URL)
