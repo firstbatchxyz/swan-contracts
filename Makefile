@@ -16,7 +16,7 @@ endif
 
 # Install Dependencies
 install:
-	forge install foundry-rs/forge-std --no-commit && forge install OpenZeppelin/openzeppelin-contracts --no-commit && forge install OpenZeppelin/openzeppelin-foundry-upgrades --no-commit && forge install OpenZeppelin/openzeppelin-contracts-upgradeable --no-commit
+	forge install foundry-rs/forge-std --no-commit && forge install firstbatchxyz/dria-oracle-contracts --no-commit && forge install OpenZeppelin/openzeppelin-contracts --no-commit && forge install OpenZeppelin/openzeppelin-foundry-upgrades --no-commit && forge install OpenZeppelin/openzeppelin-contracts-upgradeable --no-commit
 
 # Build the contracts
 build:
@@ -25,10 +25,6 @@ build:
 # Generate gas snapshot under snapshots directory
 snapshot:
 	forge snapshot
-
-# Generate the documentation under docs directory
-docs:
-	forge doc
 
 # Test the contracts on forked base-sepolia network
 test:

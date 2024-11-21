@@ -15,6 +15,7 @@
 
 // pragma solidity >=0.4.22 <0.6;
 // For not getting an "Bad CPU type in executable" error for solc-0.5.17 compiler
+pragma solidity ^0.8.20;
 
 contract WETH9 {
     string public name = "Wrapped Ether";

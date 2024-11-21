@@ -20,9 +20,7 @@ docs/
 # Forge files
 cache/
 out/
-lib/
 storage/
-lcov.info/
 
 # gas snapshot
 .gas-snapshot/

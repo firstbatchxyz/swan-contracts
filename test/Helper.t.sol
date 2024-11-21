@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.20;
 
-import {Vm} from "../lib/forge-std/src/Vm.sol";
-import {Upgrades} from "../lib/openzeppelin-foundry-upgrades/src/Upgrades.sol";
-import {WETH9} from "../contracts/token/WETH9.sol";
-import {LLMOracleRegistry, LLMOracleKind} from "../contracts/llm/LLMOracleRegistry.sol";
-import {LLMOracleCoordinator} from "../contracts/llm/LLMOracleCoordinator.sol";
-import {Test, console} from "../lib/forge-std/src/Test.sol";
-import {SwanMarketParameters} from "../contracts/swan/SwanManager.sol";
-import {LLMOracleTaskParameters} from "../contracts/llm/LLMOracleTask.sol";
-import {BuyerAgent} from "../contracts/swan/BuyerAgent.sol";
-import {Swan} from "../contracts/swan/Swan.sol";
-import {BuyerAgent, BuyerAgentFactory} from "../contracts/swan/BuyerAgent.sol";
-import {SwanAssetFactory, SwanAsset} from "../contracts/swan/SwanAsset.sol";
+import {Vm} from "forge-std/Vm.sol";
+import {Upgrades} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
+import {WETH9} from "./WETH9.sol";
+import {LLMOracleRegistry, LLMOracleKind} from "@firstbatch/dria-oracle-contracts/LLMOracleRegistry.sol";
+import {LLMOracleCoordinator} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
+import {Test, console} from "forge-std/Test.sol";
+import {SwanMarketParameters} from "../src/SwanManager.sol";
+import {LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOracleTask.sol";
+import {BuyerAgent} from "../src/BuyerAgent.sol";
+import {Swan} from "../src/Swan.sol";
+import {BuyerAgent, BuyerAgentFactory} from "../src/BuyerAgent.sol";
+import {SwanAssetFactory, SwanAsset} from "../src/SwanAsset.sol";
 
 abstract contract Helper is Test {
     struct Stakes {

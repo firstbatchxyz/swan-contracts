@@ -2,9 +2,9 @@
 pragma solidity ^0.8.20;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {LLMOracleTask, LLMOracleTaskParameters} from "../llm/LLMOracleTask.sol";
-import {Swan, SwanBuyerPurchaseOracleProtocol, SwanBuyerStateOracleProtocol} from "../swan/Swan.sol";
-import {SwanMarketParameters} from "../swan/SwanManager.sol";
+import {LLMOracleTask, LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOracleTask.sol";
+import {Swan, SwanBuyerPurchaseOracleProtocol, SwanBuyerStateOracleProtocol} from "./Swan.sol";
+import {SwanMarketParameters} from "./SwanManager.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
 /// @notice Factory contract to deploy BuyerAgent contracts.

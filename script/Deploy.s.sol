@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.20;
 
-import {Script} from "../lib/forge-std/src/Script.sol";
-import {HelperConfig} from "../script/HelperConfig.s.sol";
-import {Upgrades} from "../lib/openzeppelin-foundry-upgrades/src/Upgrades.sol";
-import {LLMOracleRegistry} from "../contracts/llm/LLMOracleRegistry.sol";
-import {LLMOracleCoordinator, LLMOracleTaskParameters} from "../contracts/llm/LLMOracleCoordinator.sol";
-import {BuyerAgentFactory} from "../contracts/swan/BuyerAgent.sol";
-import {SwanAssetFactory} from "../contracts/swan/SwanAsset.sol";
-import {Swan, SwanMarketParameters} from "../contracts/swan/Swan.sol";
-import {Vm} from "../lib/forge-std/src/Vm.sol";
-import {Strings} from "../lib/openzeppelin-contracts/contracts/utils/Strings.sol";
+import {Script} from "forge-std/Script.sol";
+import {HelperConfig} from "./HelperConfig.s.sol";
+import {Upgrades} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
+import {LLMOracleRegistry} from "@firstbatch/dria-oracle-contracts/LLMOracleRegistry.sol";
+import {
+    LLMOracleCoordinator, LLMOracleTaskParameters
+} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
+import {BuyerAgentFactory} from "../src/BuyerAgent.sol";
+import {SwanAssetFactory} from "../src/SwanAsset.sol";
+import {Swan, SwanMarketParameters} from "../src/Swan.sol";
+import {Vm} from "forge-std/Vm.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 contract Deploy is Script {
     // contracts
@@ -119,26 +121,45 @@ contract Deploy is Script {
 
     function writeContractAddresses() internal {
         // create a deployment file if not exist
+        string memory dir = "deployment/";
         string memory fileName = Strings.toString(chainId);
-        string memory path = string.concat("deployment/", fileName, ".json");
+        string memory path = string.concat(dir, fileName, ".json");
 
+        // create dir if it doesn't exist
+        vm.createDir(dir, true);
+        
         string memory contracts = string.concat(
-        "{",
-        '  "LLMOracleRegistry": {',
-        '    "proxyAddr": "', Strings.toHexString(uint256(uint160(address(oracleRegistry))), 20), '",',
-        '    "implAddr": "', Strings.toHexString(uint256(uint160(address(registryImplementation))), 20), '"',
-        "  },",
-        '  "LLMOracleCoordinator": {',
-        '    "proxyAddr": "', Strings.toHexString(uint256(uint160(address(oracleCoordinator))), 20), '",',
-        '    "implAddr": "', Strings.toHexString(uint256(uint160(address(coordinatorImplementation))), 20), '"',
-        "  },",
-        '  "Swan": {',
-        '    "proxyAddr": "', Strings.toHexString(uint256(uint160(address(swan))), 20), '",',
-        '    "implAddr": "', Strings.toHexString(uint256(uint160(address(swanImplementation))), 20), '"',
-        "  },",
-        '  "BuyerAgentFactory": "', Strings.toHexString(uint256(uint160(address(buyerAgentFactory))), 20), '",',
-        '  "SwanAssetFactory": "', Strings.toHexString(uint256(uint160(address(swanAssetFactory))), 20), '"'
-        "}"
+            "{",
+            '  "LLMOracleRegistry": {',
+            '    "proxyAddr": "',
+            Strings.toHexString(uint256(uint160(address(oracleRegistry))), 20),
+            '",',
+            '    "implAddr": "',
+            Strings.toHexString(uint256(uint160(address(registryImplementation))), 20),
+            '"',
+            "  },",
+            '  "LLMOracleCoordinator": {',
+            '    "proxyAddr": "',
+            Strings.toHexString(uint256(uint160(address(oracleCoordinator))), 20),
+            '",',
+            '    "implAddr": "',
+            Strings.toHexString(uint256(uint160(address(coordinatorImplementation))), 20),
+            '"',
+            "  },",
+            '  "Swan": {',
+            '    "proxyAddr": "',
+            Strings.toHexString(uint256(uint160(address(swan))), 20),
+            '",',
+            '    "implAddr": "',
+            Strings.toHexString(uint256(uint160(address(swanImplementation))), 20),
+            '"',
+            "  },",
+            '  "BuyerAgentFactory": "',
+            Strings.toHexString(uint256(uint160(address(buyerAgentFactory))), 20),
+            '",',
+            '  "SwanAssetFactory": "',
+            Strings.toHexString(uint256(uint160(address(swanAssetFactory))), 20),
+            '"' "}"
         );
 
         vm.writeJson(contracts, path);

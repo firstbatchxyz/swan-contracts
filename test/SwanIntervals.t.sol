@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.20;
 
-import {LLMOracleTaskParameters} from "../contracts/llm/LLMOracleTask.sol";
-import {LLMOracleRegistry} from "../contracts/llm/LLMOracleRegistry.sol";
-import {Upgrades} from "../lib/openzeppelin-foundry-upgrades/src/Upgrades.sol";
-import {LLMOracleCoordinator} from "../contracts/llm/LLMOracleCoordinator.sol";
-import {BuyerAgent, BuyerAgentFactory} from "../contracts/swan/BuyerAgent.sol";
-import {SwanAssetFactory, SwanAsset} from "../contracts/swan/SwanAsset.sol";
-import {Swan, SwanMarketParameters} from "../contracts/swan/Swan.sol";
-import {WETH9} from "../contracts/token/WETH9.sol";
-import {Vm} from "../lib/forge-std/src/Vm.sol";
+import {LLMOracleRegistry} from "@firstbatch/dria-oracle-contracts/LLMOracleRegistry.sol";
+import {Upgrades} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
+import {
+    LLMOracleCoordinator, LLMOracleTaskParameters
+} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
+import {BuyerAgent, BuyerAgentFactory} from "../src/BuyerAgent.sol";
+import {SwanAssetFactory, SwanAsset} from "../src/SwanAsset.sol";
+import {Swan, SwanMarketParameters} from "../src/Swan.sol";
+import {WETH9} from "./WETH9.sol";
+import {Vm} from "forge-std/Vm.sol";
 import {Helper} from "./Helper.t.sol";
 
 contract SwanIntervalsTest is Helper {
