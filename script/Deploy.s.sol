@@ -121,9 +121,13 @@ contract Deploy is Script {
 
     function writeContractAddresses() internal {
         // create a deployment file if not exist
+        string memory dir = "deployment/";
         string memory fileName = Strings.toString(chainId);
-        string memory path = string.concat("deployment/", fileName, ".json");
+        string memory path = string.concat(dir, fileName, ".json");
 
+        // create dir if it doesn't exist
+        vm.createDir(dir, true);
+        
         string memory contracts = string.concat(
             "{",
             '  "LLMOracleRegistry": {',
