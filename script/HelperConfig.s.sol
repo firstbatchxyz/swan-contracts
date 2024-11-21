@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.20;
 
-import {Script} from "../lib/forge-std/src/Script.sol";
-import {WETH9} from "../contracts/token/WETH9.sol";
-import {LLMOracleTaskParameters} from "../contracts/llm/LLMOracleTask.sol";
-import {SwanMarketParameters} from "../contracts/swan/SwanManager.sol";
+import {Script} from "forge-std/Script.sol";
+import {WETH9} from "../test/WETH9.sol";
+import {LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOracleTask.sol";
+import {SwanMarketParameters} from "../src/SwanManager.sol";
 
 struct Stakes {
     uint256 generatorStakeAmount;

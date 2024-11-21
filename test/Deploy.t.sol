@@ -2,11 +2,11 @@
 
 import {Deploy} from "../script/Deploy.s.sol";
 import {HelperConfig} from "../script/HelperConfig.s.sol";
-import {Test} from "../lib/forge-std/src/Test.sol";
-import {Vm} from "../lib/forge-std/src/Vm.sol";
-import {LLMOracleRegistry} from "../contracts/llm/LLMOracleRegistry.sol";
-import {LLMOracleCoordinator} from "../contracts/llm/LLMOracleCoordinator.sol";
-import {Swan} from "../contracts/swan/Swan.sol";
+import {Test} from "forge-std/Test.sol";
+import {Vm} from "forge-std/Vm.sol";
+import {LLMOracleRegistry} from "@firstbatch/dria-oracle-contracts/LLMOracleRegistry.sol";
+import {LLMOracleCoordinator} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
+import {Swan} from "../src/Swan.sol";
 
 pragma solidity ^0.8.20;
 

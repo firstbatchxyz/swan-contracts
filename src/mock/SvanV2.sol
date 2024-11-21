@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.20;
 
-import {LLMOracleCoordinator} from "../llm/LLMOracleCoordinator.sol";
+import {Swan} from "../Swan.sol";
 
-contract LLMOracleCoordinatorV2 is LLMOracleCoordinator {
+contract SwanV2 is Swan {
     function upgraded() public view virtual returns (bool) {
         return true;
     }

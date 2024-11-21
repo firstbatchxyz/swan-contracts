@@ -3,10 +3,7 @@ pragma solidity ^0.8.20;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {LLMOracleCoordinator} from "../llm/LLMOracleCoordinator.sol";
-import {LLMOracleTaskParameters} from "../llm/LLMOracleTask.sol";
-import {BuyerAgentFactory, BuyerAgent} from "./BuyerAgent.sol";
-import {SwanAssetFactory, SwanAsset} from "./SwanAsset.sol";
+import {LLMOracleTask, LLMOracleTaskParameters, LLMOracleCoordinator} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
 
 /// @notice Collection of market-related parameters.
 /// @dev Prevents stack-too-deep.
@@ -39,10 +36,6 @@ abstract contract SwanManager is OwnableUpgradeable {
     /// @notice Oracle parameters such as fees.
     LLMOracleTaskParameters oracleParameters;
 
-    /// @notice Factory contract to deploy Buyer Agents.
-    BuyerAgentFactory public buyerAgentFactory;
-    /// @notice Factory contract to deploy SwanAsset tokens.
-    SwanAssetFactory public swanAssetFactory;
     /// @notice LLM Oracle Coordinator.
     LLMOracleCoordinator public coordinator;
     /// @notice The token to be used for fee payments.
@@ -101,15 +94,6 @@ abstract contract SwanManager is OwnableUpgradeable {
     function getOracleFee() external view returns (uint256) {
         (uint256 totalFee,,) = coordinator.getFee(oracleParameters);
         return totalFee;
-    }
-    /// @notice Set the factories for Buyer Agents and Swan Assets.
-    /// @dev Only callable by owner.
-    /// @param _buyerAgentFactory new BuyerAgentFactory address
-    /// @param _swanAssetFactory new SwanAssetFactory address
-
-    function setFactories(address _buyerAgentFactory, address _swanAssetFactory) external onlyOwner {
-        buyerAgentFactory = BuyerAgentFactory(_buyerAgentFactory);
-        swanAssetFactory = SwanAssetFactory(_swanAssetFactory);
     }
 
     /*//////////////////////////////////////////////////////////////

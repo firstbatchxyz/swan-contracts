@@ -2,15 +2,13 @@
 pragma solidity ^0.8.20;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
-import {LLMOracleCoordinator} from "../llm/LLMOracleCoordinator.sol";
-import {LLMOracleTaskParameters} from "../llm/LLMOracleTask.sol";
-import {BuyerAgentFactory, BuyerAgent} from "./BuyerAgent.sol";
-import {SwanAssetFactory, SwanAsset} from "./SwanAsset.sol";
+import {LLMOracleTask, LLMOracleTaskParameters, LLMOracleCoordinator} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
 import {SwanManager, SwanMarketParameters} from "./SwanManager.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import {BuyerAgentFactory, BuyerAgent} from "./BuyerAgent.sol";
+import {SwanAssetFactory, SwanAsset} from "./SwanAsset.sol";
 
 // Protocol strings for Swan, checked in the Oracle.
 bytes32 constant SwanBuyerPurchaseOracleProtocol = "swan-buyer-purchase/0.1.0";
@@ -93,10 +91,16 @@ contract Swan is SwanManager, UUPSUpgradeable, IERC721Receiver {
         AssetStatus status;
     }
 
+    /// @notice Factory contract to deploy Buyer Agents.
+    BuyerAgentFactory public buyerAgentFactory;
+    /// @notice Factory contract to deploy SwanAsset tokens.
+    SwanAssetFactory public swanAssetFactory;
+    
     /// @notice To keep track of the assets for purchase.
     mapping(address asset => AssetListing) public listings;
     /// @notice Keeps track of assets per buyer & round.
     mapping(address buyer => mapping(uint256 round => address[])) public assetsPerBuyerRound;
+
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -159,6 +163,21 @@ contract Swan is SwanManager, UUPSUpgradeable, IERC721Receiver {
     /*//////////////////////////////////////////////////////////////
                                   LOGIC
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice Creates a new buyer agent.
+    /// @dev Emits a `BuyerCreated` event.
+    /// @return address of the new buyer agent.
+    function createBuyer(
+        string calldata _name,
+        string calldata _description,
+        uint96 _feeRoyalty,
+        uint256 _amountPerRound
+    ) external returns (BuyerAgent) {
+        BuyerAgent agent = buyerAgentFactory.deploy(_name, _description, _feeRoyalty, _amountPerRound, msg.sender);
+        emit BuyerCreated(msg.sender, address(agent));
+
+        return agent;
+    }
 
     /// @notice Creates a new Asset.
     /// @param _name name of the token.
@@ -317,6 +336,15 @@ contract Swan is SwanManager, UUPSUpgradeable, IERC721Receiver {
         emit AssetSold(listing.seller, msg.sender, _asset, listing.price);
     }
 
+    /// @notice Set the factories for Buyer Agents and Swan Assets.
+    /// @dev Only callable by owner.
+    /// @param _buyerAgentFactory new BuyerAgentFactory address
+    /// @param _swanAssetFactory new SwanAssetFactory address
+    function setFactories(address _buyerAgentFactory, address _swanAssetFactory) external onlyOwner {
+        buyerAgentFactory = BuyerAgentFactory(_buyerAgentFactory);
+        swanAssetFactory = SwanAssetFactory(_swanAssetFactory);
+    }
+
     /// @notice Returns the asset status with the given asset address.
     /// @dev Active: If the asset has not been purchased or the next round has not started.
     /// @dev Inactive: If the assets's purchaseRound has passed or delisted by the creator of the asset.
@@ -334,20 +362,5 @@ contract Swan is SwanManager, UUPSUpgradeable, IERC721Receiver {
     /// @notice Returns the asset listing with the given asset address.
     function getListing(address _asset) external view returns (AssetListing memory) {
         return listings[_asset];
-    }
-
-    /// @notice Creates a new buyer agent.
-    /// @dev Emits a `BuyerCreated` event.
-    /// @return address of the new buyer agent.
-    function createBuyer(
-        string calldata _name,
-        string calldata _description,
-        uint96 _feeRoyalty,
-        uint256 _amountPerRound
-    ) external returns (BuyerAgent) {
-        BuyerAgent agent = buyerAgentFactory.deploy(_name, _description, _feeRoyalty, _amountPerRound, msg.sender);
-        emit BuyerCreated(msg.sender, address(agent));
-
-        return agent;
     }
 }
