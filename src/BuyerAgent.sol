@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.20;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {LLMOracleTask, LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOracleTask.sol";
+import {Ownable} from  "@openzeppelin/contracts/access/Ownable.sol";
+import {LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOracleTask.sol";
 import {Swan, SwanBuyerPurchaseOracleProtocol, SwanBuyerStateOracleProtocol} from "./Swan.sol";
 import {SwanMarketParameters} from "./SwanManager.sol";
-import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
 /// @notice Factory contract to deploy BuyerAgent contracts.
 /// @dev This saves from contract space for Swan.
@@ -22,7 +21,7 @@ contract BuyerAgentFactory {
 }
 
 /// @notice BuyerAgent is responsible for buying the assets from Swan.
-contract BuyerAgent is Ownable, IERC721Receiver {
+contract BuyerAgent is Ownable {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -142,12 +141,6 @@ contract BuyerAgent is Ownable, IERC721Receiver {
         // a max approval results in infinite allowance
         swan.token().approve(address(swan.coordinator()), type(uint256).max);
         swan.token().approve(address(swan), type(uint256).max);
-    }
-
-    /// @notice Function to receive ERC721 tokens via safe transfer.
-    /// @dev [See more](https://eips.ethereum.org/EIPS/eip-721).
-    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
-        return this.onERC721Received.selector;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -327,7 +320,7 @@ contract BuyerAgent is Ownable, IERC721Receiver {
         // |--Sell--|--Buy--|-Withdraw-| (cycleTime)
         if (roundTime < params.sellInterval) {
             return (round, Phase.Sell, params.sellInterval - roundTime);
-        } else if (roundTime < params.sellInterval + params.buyInterval) {
+        } else if (roundTime < (params.sellInterval + params.buyInterval)) {
             return (round, Phase.Buy, params.sellInterval + params.buyInterval - roundTime);
         } else {
             return (round, Phase.Withdraw, cycleTime - roundTime);
@@ -365,7 +358,6 @@ contract BuyerAgent is Ownable, IERC721Receiver {
 
                 // accumulate rounds from each intermediate phase, along with a single offset round
                 round += innerRound + 1;
-
                 idx++;
             }
 
@@ -376,6 +368,7 @@ contract BuyerAgent is Ownable, IERC721Receiver {
                 _computePhase(marketParams[idx], block.timestamp - marketParams[idx].timestamp);
             // accumulate the last round as well, along with a single offset round
             round += lastRound + 1;
+
             return (round, phase, timeRemaining);
         }
     }

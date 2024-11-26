@@ -7,12 +7,12 @@ import {WETH9} from "./WETH9.sol";
 import {LLMOracleRegistry, LLMOracleKind} from "@firstbatch/dria-oracle-contracts/LLMOracleRegistry.sol";
 import {LLMOracleCoordinator} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
 import {Test, console} from "forge-std/Test.sol";
-import {SwanMarketParameters} from "../src/SwanManager.sol";
+import {SwanMarketParameters} from "../../src/SwanManager.sol";
 import {LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOracleTask.sol";
-import {BuyerAgent} from "../src/BuyerAgent.sol";
-import {Swan} from "../src/Swan.sol";
-import {BuyerAgent, BuyerAgentFactory} from "../src/BuyerAgent.sol";
-import {SwanAssetFactory, SwanAsset} from "../src/SwanAsset.sol";
+import {BuyerAgent} from "../../src/BuyerAgent.sol";
+import {Swan} from "../../src/Swan.sol";
+import {BuyerAgent, BuyerAgentFactory} from "../../src/BuyerAgent.sol";
+import {SwanAssetFactory, SwanAsset} from "../../src/SwanAsset.sol";
 
 abstract contract Helper is Test {
     struct Stakes {

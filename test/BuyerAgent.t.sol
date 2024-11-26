@@ -11,7 +11,7 @@ import {SwanAssetFactory} from "../src/SwanAsset.sol";
 import {LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOracleTask.sol";
 import {LLMOracleRegistry} from "@firstbatch/dria-oracle-contracts/LLMOracleRegistry.sol";
 import {Swan} from "../src/Swan.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {console} from "forge-std/Test.sol";
 
 contract BuyerAgentTest is Helper {
     address agentOwner;
@@ -44,6 +44,9 @@ contract BuyerAgentTest is Helper {
         // deploy factory contracts
         buyerAgentFactory = new BuyerAgentFactory();
         swanAssetFactory = new SwanAssetFactory();
+
+        require(address(buyerAgentFactory) != address(0), "BuyerAgentFactory not deployed");
+        require(address(swanAssetFactory) != address(0), "SwanAssetFactory not deployed");
 
         // deploy swan
         address swanProxy = Upgrades.deployUUPSProxy(

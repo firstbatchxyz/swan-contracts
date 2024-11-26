@@ -127,7 +127,7 @@ contract Deploy is Script {
 
         // create dir if it doesn't exist
         vm.createDir(dir, true);
-        
+
         string memory contracts = string.concat(
             "{",
             '  "LLMOracleRegistry": {',
