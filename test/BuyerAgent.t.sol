@@ -85,7 +85,7 @@ contract BuyerAgentTest is Helper {
             BuyerAgent buyerAgent = swan.createBuyer(
                 buyerAgentParameters[i].name,
                 buyerAgentParameters[i].description,
-                buyerAgentParameters[i].royaltyFee,
+                buyerAgentParameters[i].feeRoyalty,
                 buyerAgentParameters[i].amountPerRound
             );
 
@@ -158,7 +158,7 @@ contract BuyerAgentTest is Helper {
 
     /// @notice Test that the non-owner cannot withdraw
     function test_RevertWhen_WithdrawByAnotherOwner() external deployment createBuyers {
-        // royalty fee can be set only in withdraw phase by only agent owner
+        // feeRoyalty can be set only in withdraw phase by only agent owner
         vm.warp(agent.createdAt() + marketParameters.sellInterval + marketParameters.buyInterval);
         currPhase = BuyerAgent.Phase.Withdraw;
 
@@ -191,14 +191,14 @@ contract BuyerAgentTest is Helper {
     function test_SetRoyaltyAndAmountPerRound() external deployment createBuyers {
         vm.warp(agent.createdAt() + marketParameters.sellInterval + marketParameters.buyInterval);
 
-        uint96 newRoyaltyFee = 20;
+        uint96 newFeeRoyalty = 20;
         uint256 newAmountPerRound = 0.25 ether;
 
         vm.startPrank(agentOwner);
-        agent.setFeeRoyalty(newRoyaltyFee);
+        agent.setFeeRoyalty(newFeeRoyalty);
         agent.setAmountPerRound(newAmountPerRound);
 
-        assertEq(agent.royaltyFee(), newRoyaltyFee);
+        assertEq(agent.feeRoyalty(), newFeeRoyalty);
         assertEq(agent.amountPerRound(), newAmountPerRound);
 
         vm.stopPrank();

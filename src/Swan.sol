@@ -13,6 +13,7 @@ import {SwanManager, SwanMarketParameters} from "./SwanManager.sol";
 // Protocol strings for Swan, checked in the Oracle.
 bytes32 constant SwanBuyerPurchaseOracleProtocol = "swan-buyer-purchase/0.1.0";
 bytes32 constant SwanBuyerStateOracleProtocol = "swan-buyer-state/0.1.0";
+uint256 constant BASIS_POINTS = 10_000;
 
 contract Swan is SwanManager, UUPSUpgradeable {
     /*//////////////////////////////////////////////////////////////
@@ -74,7 +75,7 @@ contract Swan is SwanManager, UUPSUpgradeable {
 
     /// @notice Holds the listing information.
     /// @dev `createdAt` is the timestamp of the Asset creation.
-    /// @dev `royaltyFee` is the royaltyFee of the buyerAgent.
+    /// @dev `feeRoyalty` is the royalty fee of the buyerAgent.
     /// @dev `price` is the price of the Asset.
     /// @dev `seller` is the address of the creator of the Asset.
     /// @dev `buyer` is the address of the buyerAgent.
@@ -82,7 +83,7 @@ contract Swan is SwanManager, UUPSUpgradeable {
     /// @dev `status` is the status of the Asset.
     struct AssetListing {
         uint256 createdAt;
-        uint96 royaltyFee;
+        uint96 feeRoyalty;
         uint256 price;
         address seller; // TODO: we can use asset.owner() instead of seller
         address buyer;
@@ -200,7 +201,7 @@ contract Swan is SwanManager, UUPSUpgradeable {
         address asset = address(swanAssetFactory.deploy(_name, _symbol, _desc, msg.sender));
         listings[asset] = AssetListing({
             createdAt: block.timestamp,
-            royaltyFee: buyer.royaltyFee(),
+            feeRoyalty: buyer.feeRoyalty(),
             price: _price,
             seller: msg.sender,
             status: AssetStatus.Listed,
@@ -269,7 +270,7 @@ contract Swan is SwanManager, UUPSUpgradeable {
         // create listing
         listings[_asset] = AssetListing({
             createdAt: block.timestamp,
-            royaltyFee: buyer.royaltyFee(),
+            feeRoyalty: buyer.feeRoyalty(),
             price: _price,
             seller: msg.sender,
             status: AssetStatus.Listed,
@@ -289,8 +290,8 @@ contract Swan is SwanManager, UUPSUpgradeable {
     /// @notice Function to transfer the royalties to the seller & Dria.
     function transferRoyalties(AssetListing storage asset) internal {
         // calculate fees
-        uint256 buyerFee = (asset.price * asset.royaltyFee) / 100;
-        uint256 driaFee = (buyerFee * getCurrentMarketParameters().platformFee) / 100;
+        uint256 buyerFee = (asset.price * asset.feeRoyalty * 100) / BASIS_POINTS;
+        uint256 driaFee = (buyerFee * getCurrentMarketParameters().platformFee * 100) / BASIS_POINTS;
 
         // first, Swan receives the entire fee from seller
         // this allows only one approval from the seller's side

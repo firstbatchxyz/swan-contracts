@@ -7,12 +7,12 @@ import {WETH9} from "./WETH9.sol";
 import {LLMOracleRegistry, LLMOracleKind} from "@firstbatch/dria-oracle-contracts/LLMOracleRegistry.sol";
 import {LLMOracleCoordinator} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
 import {Test, console} from "forge-std/Test.sol";
-import {SwanMarketParameters} from "../../src/SwanManager.sol";
+import {SwanMarketParameters} from "../src/SwanManager.sol";
 import {LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOracleTask.sol";
-import {BuyerAgent} from "../../src/BuyerAgent.sol";
-import {Swan} from "../../src/Swan.sol";
-import {BuyerAgent, BuyerAgentFactory} from "../../src/BuyerAgent.sol";
-import {SwanAssetFactory, SwanAsset} from "../../src/SwanAsset.sol";
+import {BuyerAgent} from "../src/BuyerAgent.sol";
+import {Swan} from "../src/Swan.sol";
+import {BuyerAgent, BuyerAgentFactory} from "../src/BuyerAgent.sol";
+import {SwanAssetFactory, SwanAsset} from "../src/SwanAsset.sol";
 
 abstract contract Helper is Test {
     struct Stakes {
@@ -29,7 +29,7 @@ abstract contract Helper is Test {
     struct BuyerAgentParameters {
         string name;
         string description;
-        uint96 royaltyFee;
+        uint96 feeRoyalty;
         uint256 amountPerRound;
     }
 
@@ -67,9 +67,9 @@ abstract contract Helper is Test {
 
     uint256 assetPrice = 0.01 ether;
     uint256 amountPerRound = 0.015 ether;
-    uint96 royaltyFee = 2;
+    uint8 feeRoyalty = 2;
 
-    uint256[] scores = [1 ether, 1 ether, 1 ether];
+    uint256[] scores = [1, 5, 70];
 
     /// @notice The given nonce is not a valid proof-of-work.
     error InvalidNonceFromHelperTest(uint256 taskId, uint256 nonce, uint256 computedNonce, address caller);
@@ -89,7 +89,8 @@ abstract contract Helper is Test {
             platformFee: 2, // percentage
             maxAssetCount: 3,
             timestamp: block.timestamp,
-            minAssetPrice: 0.00001 ether
+            minAssetPrice: 0.00001 ether,
+            maxBuyerAgentFee: 75 // percentage
         });
 
         stakes = Stakes({generatorStakeAmount: 0.01 ether, validatorStakeAmount: 0.01 ether});
@@ -100,7 +101,7 @@ abstract contract Helper is Test {
                 BuyerAgentParameters({
                     name: string.concat("BuyerAgent", vm.toString(uint256(i))),
                     description: "description of the buyer agent",
-                    royaltyFee: royaltyFee,
+                    feeRoyalty: feeRoyalty,
                     amountPerRound: amountPerRound
                 })
             );
@@ -108,6 +109,7 @@ abstract contract Helper is Test {
             vm.label(buyerAgentOwners[i], string.concat("BuyerAgentOwner#", vm.toString(i + 1)));
         }
         vm.label(dria, "Dria");
+        vm.label(address(this), "Helper");
     }
 
     modifier registerOracles() {
@@ -151,7 +153,7 @@ abstract contract Helper is Test {
             BuyerAgent buyerAgent = swan.createBuyer(
                 buyerAgentParameters[i].name,
                 buyerAgentParameters[i].description,
-                buyerAgentParameters[i].royaltyFee,
+                buyerAgentParameters[i].feeRoyalty,
                 buyerAgentParameters[i].amountPerRound
             );
 
@@ -213,13 +215,14 @@ abstract contract Helper is Test {
             vm.prank(sellers[i]);
             token.approve(address(swan), 1 ether);
             assertEq(token.allowance(sellers[i], address(swan)), 1 ether);
+            vm.label(sellers[i], string.concat("Seller#", vm.toString(i + 1)));
         }
         _;
     }
 
     modifier listAssets(address seller, uint256 assetCount, address buyerAgent) {
+        vm.startPrank(seller);
         for (uint256 i = 0; i < assetCount; i++) {
-            vm.prank(seller);
             swan.list(
                 string.concat("SwanAsset#", vm.toString(i)),
                 string.concat("SA#", vm.toString(i)),
@@ -228,6 +231,7 @@ abstract contract Helper is Test {
                 buyerAgent
             );
         }
+        vm.stopPrank();
 
         // get listed assets
         address[] memory listedAssets = swan.getListedAssets(buyerAgent, currRound);

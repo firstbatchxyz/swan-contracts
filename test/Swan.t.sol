@@ -108,7 +108,7 @@ contract SwanTest is Helper {
         assertEq(buyerAgents.length, buyerAgentOwners.length);
 
         for (uint256 i = 0; i < buyerAgents.length; i++) {
-            assertEq(buyerAgents[i].royaltyFee(), buyerAgentParameters[i].royaltyFee);
+            assertEq(buyerAgents[i].feeRoyalty(), buyerAgentParameters[i].feeRoyalty);
             assertEq(buyerAgents[i].owner(), buyerAgentOwners[i]);
             assertEq(buyerAgents[i].amountPerRound(), buyerAgentParameters[i].amountPerRound);
             assertEq(buyerAgents[i].name(), buyerAgentParameters[i].name);
@@ -163,7 +163,7 @@ contract SwanTest is Helper {
         // get the listed asset
         address assetToFail = swan.getListedAssets(address(buyerAgents[0]), currRound)[0];
 
-        vm.prank(SwanAsset(assetToFail).owner());
+        vm.prank(sellers[0]);
         vm.expectRevert(abi.encodeWithSelector(Swan.RoundNotFinished.selector, assetToFail, currRound));
         swan.relist(assetToFail, address(buyerAgents[1]), 0.001 ether);
     }
@@ -181,7 +181,8 @@ contract SwanTest is Helper {
         address buyerToFail = buyerAgentOwners[0];
         BuyerAgent buyerAgent = buyerAgents[1];
 
-        vm.warp(buyerAgents[0].createdAt() + marketParameters.sellInterval);
+        uint256 buyPhaseOfTheFirstRound = buyerAgent.createdAt() + marketParameters.sellInterval;
+        vm.warp(buyPhaseOfTheFirstRound);
         currPhase = BuyerAgent.Phase.Buy;
 
         vm.expectRevert(abi.encodeWithSelector(Swan.Unauthorized.selector, buyerToFail));
@@ -279,7 +280,6 @@ contract SwanTest is Helper {
         assertEq(assetSoldEvent.emitter, address(swan));
     }
 
-    /// @notice Buyer can update his state after purchase
     function test_UpdateState()
         external
         deployment
@@ -315,7 +315,9 @@ contract SwanTest is Helper {
 
     /// @notice Seller cannot list an asset in withdraw phase
     function test_RevertWhen_ListInWithdrawPhase() external deployment fund createBuyers sellersApproveToSwan {
-        vm.warp(buyerAgents[0].createdAt() + marketParameters.sellInterval + marketParameters.buyInterval);
+        uint256 withdrawPhase =
+            buyerAgents[0].createdAt() + marketParameters.sellInterval + marketParameters.buyInterval;
+        vm.warp(withdrawPhase);
         currPhase = BuyerAgent.Phase.Withdraw;
 
         vm.prank(sellers[0]);
@@ -325,9 +327,9 @@ contract SwanTest is Helper {
 
     /// @notice Buyer Agent Owner can setAmountPerRound in withdraw phase
     function test_SetAmountPerRound() external deployment fund createBuyers sellersApproveToSwan {
-        vm.warp(buyerAgents[0].createdAt() + marketParameters.sellInterval + marketParameters.buyInterval);
-
         uint256 newAmountPerRound = 2 ether;
+
+        vm.warp(buyerAgents[0].createdAt() + marketParameters.sellInterval + marketParameters.buyInterval);
 
         vm.prank(buyerAgentOwners[0]);
         buyerAgents[0].setAmountPerRound(newAmountPerRound);
@@ -377,11 +379,11 @@ contract SwanTest is Helper {
 
         // increase time to buy phase
         vm.warp(buyerAgent.createdAt() + marketParameters.sellInterval);
-
         safePurchase(buyer, buyerAgent, taskId);
 
-        // increase time to the sell phase of the next round
-        vm.warp(buyerAgent.createdAt() + marketParameters.buyInterval + marketParameters.withdrawInterval);
+        uint256 sellPhaseOfTheSecondRound =
+            buyerAgent.createdAt() + marketParameters.buyInterval + marketParameters.withdrawInterval;
+        vm.warp(sellPhaseOfTheSecondRound);
 
         // get the asset
         address listedAssetAddr = swan.getListedAssets(address(buyerAgent), currRound)[0];
@@ -408,11 +410,10 @@ contract SwanTest is Helper {
         BuyerAgent buyerAgent = buyerAgents[0];
         address listedAssetAddr = swan.getListedAssets(address(buyerAgent), currRound)[0];
 
-        // increase time to the sell phase of the next round
-        vm.warp(
-            buyerAgent.createdAt() + marketParameters.sellInterval + marketParameters.buyInterval
-                + marketParameters.withdrawInterval
-        );
+        // increase time to the sell phase of thze next round
+        uint256 sellPhaseOfTheSecondRound = buyerAgent.createdAt() + marketParameters.sellInterval
+            + marketParameters.buyInterval + marketParameters.withdrawInterval;
+        vm.warp(sellPhaseOfTheSecondRound);
 
         // try to relist an asset by another seller
         vm.prank(sellers[1]);
@@ -437,10 +438,9 @@ contract SwanTest is Helper {
         address listedAssetAddr = swan.getListedAssets(address(buyerAgent), currRound)[0];
 
         // increase time to the sell phase of the next round
-        vm.warp(
-            buyerAgent.createdAt() + marketParameters.sellInterval + marketParameters.buyInterval
-                + marketParameters.withdrawInterval
-        );
+        uint256 sellPhaseOfTheSecondRound = buyerAgent.createdAt() + marketParameters.sellInterval
+            + marketParameters.buyInterval + marketParameters.withdrawInterval;
+        vm.warp(sellPhaseOfTheSecondRound);
 
         // try to relist an asset by another seller
         vm.recordLogs();
@@ -483,18 +483,23 @@ contract SwanTest is Helper {
         listAssets(sellers[0], marketParameters.maxAssetCount, address(buyerAgents[0]))
     {
         BuyerAgent buyerAgent = buyerAgents[0];
+
         address listedAssetAddr = swan.getListedAssets(address(buyerAgent), currRound)[0];
 
-        uint256 cycleTime =
-            marketParameters.buyInterval + marketParameters.sellInterval + marketParameters.withdrawInterval;
-
-        vm.warp(buyerAgent.createdAt() + cycleTime + marketParameters.sellInterval);
+        // increase time to the buy phase of the second round
+        uint256 buyPhaseOfTheSecondRound = buyerAgent.createdAt() + 2 * marketParameters.sellInterval
+            + marketParameters.buyInterval + marketParameters.withdrawInterval;
+        vm.warp(buyPhaseOfTheSecondRound);
         currPhase = BuyerAgent.Phase.Buy;
 
+        // check the current phase
+        (, BuyerAgent.Phase _phase,) = buyerAgent.getRoundPhase();
+        require(uint8(currPhase) == uint8(_phase), "Phase is not 'Buy'");
+
         // try to relist
-        vm.prank(sellers[0]);
         vm.expectRevert(abi.encodeWithSelector(BuyerAgent.InvalidPhase.selector, currPhase, BuyerAgent.Phase.Sell));
-        swan.relist(listedAssetAddr, address(buyerAgent), 0.1 ether);
+        vm.prank(sellers[0]);
+        swan.relist(listedAssetAddr, address(buyerAgent), assetPrice);
     }
 
     ///  @notice Seller cannot relist an asset in Withdraw Phase
@@ -510,21 +515,22 @@ contract SwanTest is Helper {
         BuyerAgent buyerAgent = buyerAgents[0];
         address listedAssetAddr = swan.getListedAssets(address(buyerAgent), currRound)[0];
 
-        uint256 cycleTime =
-            marketParameters.buyInterval + marketParameters.sellInterval + marketParameters.withdrawInterval;
-
-        vm.warp(buyerAgent.createdAt() + cycleTime + marketParameters.sellInterval + marketParameters.buyInterval);
+        // increase time to the withdraw phase of the second round
+        uint256 withdrawPhaseOfSecondRound = 2 * marketParameters.buyInterval + 2 * marketParameters.sellInterval
+            + marketParameters.withdrawInterval + buyerAgent.createdAt();
+        vm.warp(withdrawPhaseOfSecondRound);
         currPhase = BuyerAgent.Phase.Withdraw;
 
         // try to relist
-        vm.prank(sellers[0]);
         vm.expectRevert(abi.encodeWithSelector(BuyerAgent.InvalidPhase.selector, currPhase, BuyerAgent.Phase.Sell));
-        swan.relist(listedAssetAddr, address(buyerAgent), 0.1 ether);
+        vm.prank(sellers[0]);
+        swan.relist(listedAssetAddr, address(buyerAgent), assetPrice);
     }
 
     /// @notice Swan owner can set market parameters
     /// @dev Only Swan owner can set market parameters
     function test_SetMarketParameters() external deployment fund createBuyers {
+        // increase time to the withdraw phase
         vm.warp(buyerAgents[0].createdAt() + marketParameters.buyInterval + marketParameters.sellInterval);
 
         SwanMarketParameters memory newMarketParameters = SwanMarketParameters({
@@ -534,7 +540,8 @@ contract SwanTest is Helper {
             platformFee: 12,
             maxAssetCount: 100,
             timestamp: block.timestamp,
-            minAssetPrice: 0.00001 ether
+            minAssetPrice: 0.00001 ether,
+            maxBuyerAgentFee: 75
         });
 
         vm.prank(dria);
@@ -552,6 +559,7 @@ contract SwanTest is Helper {
     /// @notice Swan owner can set oracle parameters
     /// @dev Only Swan owner can set oracle parameters
     function test_SetOracleParameters() external deployment fund createBuyers {
+        // increase time to the withdraw phase
         vm.warp(buyerAgents[0].createdAt() + marketParameters.buyInterval + marketParameters.sellInterval);
 
         LLMOracleTaskParameters memory newOracleParameters =

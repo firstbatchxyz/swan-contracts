@@ -107,7 +107,8 @@ contract SwanIntervalsTest is Helper {
                 platformFee: 2,
                 maxAssetCount: 3,
                 timestamp: block.timestamp,
-                minAssetPrice: 0.00001 ether
+                minAssetPrice: 0.00001 ether,
+                maxBuyerAgentFee: 80
             })
         );
 
@@ -127,7 +128,7 @@ contract SwanIntervalsTest is Helper {
         BuyerAgent agentAfterFirstSet = swan.createBuyer(
             buyerAgentParameters[1].name,
             buyerAgentParameters[1].description,
-            buyerAgentParameters[1].royaltyFee,
+            buyerAgentParameters[1].feeRoyalty,
             buyerAgentParameters[1].amountPerRound
         );
 
@@ -146,7 +147,8 @@ contract SwanIntervalsTest is Helper {
                 platformFee: 2, // percentage
                 maxAssetCount: 3,
                 timestamp: block.timestamp,
-                minAssetPrice: 0.00001 ether
+                minAssetPrice: 0.00001 ether,
+                maxBuyerAgentFee: 80
             })
         );
 

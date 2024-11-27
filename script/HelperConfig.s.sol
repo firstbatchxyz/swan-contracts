@@ -25,9 +25,6 @@ contract HelperConfig is Script {
     Fees public fees;
     WETH9 public token;
 
-    // local key
-    uint256 public constant ANVIL_KEY = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
-
     constructor() {
         // set deployment parameters
         stakes = Stakes({generatorStakeAmount: 0.0001 ether, validatorStakeAmount: 0.000001 ether});
@@ -41,7 +38,8 @@ contract HelperConfig is Script {
             withdrawInterval: 15 minutes,
             platformFee: 1, // percentage
             minAssetPrice: 0.00001 ether,
-            timestamp: 0 // will be set in the first call
+            timestamp: 0, // will be set in the first call
+            maxBuyerAgentFee: 75 // percentage
         });
 
         // for base sepolia

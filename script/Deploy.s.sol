@@ -87,6 +87,8 @@ contract Deploy is Script {
             uint256 platformFee,
             uint256 maxAssetCount,
             uint256 minAssetPrice,
+            ,
+            uint8 maxBuyerAgentFee
         ) = config.marketParams();
 
         // get llm params
@@ -105,7 +107,8 @@ contract Deploy is Script {
                         platformFee,
                         maxAssetCount,
                         minAssetPrice,
-                        block.timestamp
+                        block.timestamp,
+                        maxBuyerAgentFee
                     ),
                     LLMOracleTaskParameters(diff, numGen, numVal),
                     address(oracleCoordinator),

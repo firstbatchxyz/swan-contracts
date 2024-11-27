@@ -12,11 +12,11 @@ contract BuyerAgentFactory {
     function deploy(
         string memory _name,
         string memory _description,
-        uint96 _royaltyFee,
+        uint96 _feeRoyalty,
         uint256 _amountPerRound,
         address _owner
     ) external returns (BuyerAgent) {
-        return new BuyerAgent(_name, _description, _royaltyFee, _amountPerRound, msg.sender, _owner);
+        return new BuyerAgent(_name, _description, _feeRoyalty, _amountPerRound, msg.sender, _owner);
     }
 }
 
@@ -75,7 +75,7 @@ contract BuyerAgent is Ownable {
     /// @dev Only updated by the oracle via `updateState`.
     bytes public state;
     /// @notice Royalty fees for the buyer agent.
-    uint96 public royaltyFee;
+    uint96 public feeRoyalty;
     /// @notice The max amount of money the agent can spend per round.
     uint256 public amountPerRound;
 
@@ -115,22 +115,23 @@ contract BuyerAgent is Ownable {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Create the buyer agent.
-    /// @dev `_royaltyFee` should be between 1 and 100.
+    /// @dev `_feeRoyalty` should be between 1 and maxBuyerAgentFee in the swan market parameters.
     /// @dev All tokens are approved to the oracle coordinator of operator.
     constructor(
         string memory _name,
         string memory _description,
-        uint96 _royaltyFee,
+        uint96 _feeRoyalty,
         uint256 _amountPerRound,
         address _operator,
         address _owner
     ) Ownable(_owner) {
-        if (_royaltyFee < 1 || _royaltyFee > 100) {
-            revert InvalidFee(_royaltyFee);
-        }
-        royaltyFee = _royaltyFee;
-
         swan = Swan(_operator);
+
+        if (_feeRoyalty < 1 || _feeRoyalty > swan.getCurrentMarketParameters().maxBuyerAgentFee) {
+            revert InvalidFee(_feeRoyalty);
+        }
+        
+        feeRoyalty = _feeRoyalty;
         amountPerRound = _amountPerRound;
         name = _name;
         description = _description;
@@ -148,10 +149,9 @@ contract BuyerAgent is Ownable {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice The minimum amount of money that the buyer must leave within the contract.
-    /// @dev minFundAmount = amountPerRound + 2 * oracleTotalFee
+    /// @dev minFundAmount should be `amountPerRound + oracleFee` to be able to make requests.
     function minFundAmount() public view returns (uint256) {
-        // 2 * oracleFee => one for the next round and one for update state
-        return amountPerRound + 2 * swan.getOracleFee();
+        return amountPerRound + swan.getOracleFee();
     }
 
     /// @notice Reads the best performing result for a given task id, and parses it as an array of addresses.
@@ -376,14 +376,14 @@ contract BuyerAgent is Ownable {
     /// @notice Function to set feeRoyalty.
     /// @dev Only callable by the owner.
     /// @dev Only callable in withdraw phase.
-    /// @param _fee new feeRoyalty, must be between 1 and 100.
-    function setFeeRoyalty(uint96 _fee) public onlyOwner {
+    /// @param newFeeRoyalty must be between 1 and 100.
+    function setFeeRoyalty(uint96 newFeeRoyalty) public onlyOwner {
         _checkRoundPhase(Phase.Withdraw);
 
-        if (_fee < 1 || _fee >= 100) {
-            revert InvalidFee(_fee);
+        if (newFeeRoyalty < 1 || newFeeRoyalty >= 100) {
+            revert InvalidFee(newFeeRoyalty);
         }
-        royaltyFee = _fee;
+        feeRoyalty = newFeeRoyalty;
     }
 
     /// @notice Function to set the amountPerRound.

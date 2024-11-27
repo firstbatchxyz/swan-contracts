@@ -24,6 +24,8 @@ struct SwanMarketParameters {
     /// @notice Timestamp of the block that this market parameter was added.
     /// @dev Even if this is provided by the user, it will get overwritten by the internal `block.timestamp`.
     uint256 timestamp;
+    /// @notice The maximum fee that a buyer agent can charge.
+    uint8 maxBuyerAgentFee;
 }
 
 abstract contract SwanManager is OwnableUpgradeable {
@@ -53,10 +55,6 @@ abstract contract SwanManager is OwnableUpgradeable {
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
-    }
-
-    function __SwanManager_init(address _owner) public onlyInitializing {
-        __Ownable_init(_owner);
     }
 
     /*//////////////////////////////////////////////////////////////
