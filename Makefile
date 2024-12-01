@@ -53,6 +53,10 @@ doc:
 fmt:
 	forge fmt
 
+# Coverage
+cov:
+	forge coverage --no-match-coverage "(test|mock|script)"
+
 # TODO: forge-verify
 
 # Prevent make from interpreting the network name as a target

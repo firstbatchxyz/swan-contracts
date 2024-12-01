@@ -7,7 +7,7 @@ set -e
 forge coverage \
     --report lcov \
     --report summary \
-    --no-match-coverage "(test|mock|token)" 
+    --no-match-coverage "(test|mock|script)" 
 
 # Install lcov
 brew install lcov

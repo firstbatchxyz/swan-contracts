@@ -43,6 +43,11 @@ Check coverages with:
 ```sh
 bash coverage.sh
 ```
+or to see summarized coverages on terminal:
+
+```sh
+make cov
+```
 
 You can see coverages under the coverage directory.
 
