@@ -11,9 +11,6 @@ coverage/
 /broadcast/*/84532/
 /broadcast/**/dry-run/
 
-# Docs
-docs/
-
 # Forge files
 cache/
 out/
