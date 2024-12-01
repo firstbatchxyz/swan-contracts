@@ -1,16 +1,16 @@
 {
   "LLMOracleRegistry": {
-    "proxyAddr": "0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0",
-    "implAddr": "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512"
+    "proxyAddr": "0x90193c961a926261b756d1e5bb255e67ff9498a1",
+    "implAddr": "0x34a1d3fff3958843c43ad80f30b94c510645c316"
   },
   "LLMOracleCoordinator": {
-    "proxyAddr": "0xdc64a140aa3e981100a9beca4e685f962f0cf6c9",
-    "implAddr": "0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9"
+    "proxyAddr": "0xbb2180ebd78ce97360503434ed37fcf4a1df61c3",
+    "implAddr": "0xa8452ec99ce0c64f20701db7dd3abdb607c00496"
   },
   "Swan": {
-    "proxyAddr": "0x2279b7a0a67db372996a5fab50d91eaa73d2ebe6",
-    "implAddr": "0xa513e6e4b8f2a923d98304ec87f64353c4d5c853"
+    "proxyAddr": "0xdeb1e9a6be7baf84208bb6e10ac9f9bbe1d70809",
+    "implAddr": "0x62c20aa1e0272312bc100b4e23b4dc1ed96dd7d1"
   },
-  "BuyerAgentFactory": "0x5fc8d32690cc91d4c39d9d3abcbd16989f875707",
-  "SwanAssetFactory": "0x0165878a594ca255338adfa4d48449f69242eb8f"
+  "BuyerAgentFactory": "0xdb8cff278adccf9e9b5da745b44e754fc4ee3c76",
+  "SwanAssetFactory": "0x50eef481cae4250d252ae577a09bf514f224c6c4"
 }

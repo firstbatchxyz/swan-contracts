@@ -20,6 +20,22 @@ Run tests on forked base-sepolia:
 make test
 ```
 
+## Format
+
+Format code with:
+
+```sh
+make fmt
+```
+
+## Update
+
+Update modules with:
+
+```sh
+make update
+```
+
 ## Coverage
 
 Check coverages with:

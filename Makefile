@@ -18,6 +18,10 @@ endif
 install:
 	forge install foundry-rs/forge-std --no-commit && forge install firstbatchxyz/dria-oracle-contracts --no-commit && forge install OpenZeppelin/openzeppelin-contracts --no-commit && forge install OpenZeppelin/openzeppelin-foundry-upgrades --no-commit && forge install OpenZeppelin/openzeppelin-contracts-upgradeable --no-commit
 
+# Update modules
+update:
+	forge update
+
 # Build the contracts
 build:
 	forge clean && forge build
@@ -44,6 +48,10 @@ deploy:
 # Generate contract documentation under docs dir. You can also see the docs on http://localhost:4000
 doc:
 	forge doc
+
+# Format code
+fmt:
+	forge fmt
 
 # TODO: forge-verify
 

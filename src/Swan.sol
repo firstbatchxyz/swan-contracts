@@ -153,6 +153,23 @@ contract Swan is SwanManager, UUPSUpgradeable {
         isOperator[msg.sender] = true;
     }
 
+    /// @notice Transfer ownership of the contract.
+    /// @dev Overrides the default `transferOwnership` function to make the new owner an operator.
+    /// @param newOwner address of the new owner.
+    function transferOwnership(address newOwner) public override onlyOwner {
+        if (newOwner == address(0)) {
+        revert OwnableInvalidOwner(address(0));
+}
+        // remove the old owner from the operator list
+        isOperator[msg.sender] = false;
+
+        // transfer ownership
+        _transferOwnership(newOwner);
+
+        // make new owner an operator
+        isOperator[newOwner] = true;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                   LOGIC
     //////////////////////////////////////////////////////////////*/

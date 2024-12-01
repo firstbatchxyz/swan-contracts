@@ -1,31 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.20;
 
-import {Vm} from "forge-std/Vm.sol";
 import {Upgrades} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
+import {Vm} from "forge-std/Vm.sol";
+import {Test} from "forge-std/Test.sol";
+
 import {WETH9} from "./WETH9.sol";
 import {LLMOracleRegistry, LLMOracleKind} from "@firstbatch/dria-oracle-contracts/LLMOracleRegistry.sol";
 import {LLMOracleCoordinator} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
-import {Test, console} from "forge-std/Test.sol";
 import {SwanMarketParameters} from "../src/SwanManager.sol";
 import {LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOracleTask.sol";
+import {BuyerAgent, BuyerAgentFactory} from "../src/BuyerAgent.sol";
+import {SwanAssetFactory} from "../src/SwanAsset.sol";
 import {BuyerAgent} from "../src/BuyerAgent.sol";
 import {Swan} from "../src/Swan.sol";
-import {BuyerAgent, BuyerAgentFactory} from "../src/BuyerAgent.sol";
-import {SwanAssetFactory, SwanAsset} from "../src/SwanAsset.sol";
+import {Stakes, Fees} from "../script/HelperConfig.s.sol";
 
+// CREATED TO PREVENT CODE DUPLICATION IN TESTS
 abstract contract Helper is Test {
-    struct Stakes {
-        uint256 generatorStakeAmount;
-        uint256 validatorStakeAmount;
-    }
-
-    struct Fees {
-        uint256 platformFee;
-        uint256 generationFee;
-        uint256 validationFee;
-    }
-
+    /// @dev Parameters for the buyer agent deployment
     struct BuyerAgentParameters {
         string name;
         string description;
@@ -69,11 +62,13 @@ abstract contract Helper is Test {
     uint256 amountPerRound = 0.015 ether;
     uint8 feeRoyalty = 2;
 
+    // Default scores for validation
     uint256[] scores = [1, 5, 70];
 
     /// @notice The given nonce is not a valid proof-of-work.
     error InvalidNonceFromHelperTest(uint256 taskId, uint256 nonce, uint256 computedNonce, address caller);
 
+    // Set parameters for the test
     function setUp() public {
         dria = vm.addr(1);
         validators = [vm.addr(2), vm.addr(3), vm.addr(4)];
@@ -94,7 +89,7 @@ abstract contract Helper is Test {
         });
 
         stakes = Stakes({generatorStakeAmount: 0.01 ether, validatorStakeAmount: 0.01 ether});
-        fees = Fees({platformFee: 0.0001 ether, generationFee: 0.0002 ether, validationFee: 0.00003 ether});
+        fees = Fees({platformFee: 0.0001 ether, generatorFee: 0.0002 ether, validatorFee: 0.00003 ether});
 
         for (uint96 i = 0; i < buyerAgentOwners.length; i++) {
             buyerAgentParameters.push(
@@ -112,13 +107,18 @@ abstract contract Helper is Test {
         vm.label(address(this), "Helper");
     }
 
+    /*//////////////////////////////////////////////////////////////
+                             MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Register generators and validators
     modifier registerOracles() {
         for (uint256 i = 0; i < generators.length; i++) {
-            // Approve the stake for the generator
+            // approve the stake for the generator
             vm.startPrank(generators[i]);
             token.approve(address(oracleRegistry), stakes.generatorStakeAmount + stakes.validatorStakeAmount);
 
-            // Register the generator oracle
+            // register the generator oracle
             oracleRegistry.register(LLMOracleKind.Generator);
             vm.stopPrank();
 
@@ -127,11 +127,11 @@ abstract contract Helper is Test {
         }
 
         for (uint256 i = 0; i < validators.length; i++) {
-            // Approve the stake for the validator
+            // approve the stake for the validator
             vm.startPrank(validators[i]);
             token.approve(address(oracleRegistry), stakes.validatorStakeAmount);
 
-            // Register the validator oracle
+            // register the validator oracle
             oracleRegistry.register(LLMOracleKind.Validator);
             vm.stopPrank();
 
@@ -141,6 +141,7 @@ abstract contract Helper is Test {
         _;
     }
 
+    /// @notice Create buyers by using buyerAgentOwners and buyerAgentParameters
     modifier createBuyers() virtual {
         for (uint256 i = 0; i < buyerAgentOwners.length; i++) {
             // fund buyer agent owner
@@ -210,6 +211,7 @@ abstract contract Helper is Test {
         _;
     }
 
+    /// @notice Sellers approve swan
     modifier sellersApproveToSwan() {
         for (uint256 i = 0; i < sellers.length; i++) {
             vm.prank(sellers[i]);
@@ -220,6 +222,10 @@ abstract contract Helper is Test {
         _;
     }
 
+    /// @notice Listing assets with the given params.
+    /// @param seller Seller of the asset.
+    /// @param assetCount Number of assets that will be listed.
+    /// @param buyerAgent Agent that assets will be list for.
     modifier listAssets(address seller, uint256 assetCount, address buyerAgent) {
         vm.startPrank(seller);
         for (uint256 i = 0; i < assetCount; i++) {
@@ -233,12 +239,13 @@ abstract contract Helper is Test {
         }
         vm.stopPrank();
 
-        // get listed assets
+        // check if assets listed
         address[] memory listedAssets = swan.getListedAssets(buyerAgent, currRound);
         assertEq(listedAssets.length, assetCount);
         _;
     }
 
+    /// @dev Sets oracle parameters
     modifier setOracleParameters(uint8 _difficulty, uint40 _numGenerations, uint40 _numValidations) {
         oracleParameters.difficulty = _difficulty;
         oracleParameters.numGenerations = _numGenerations;
@@ -250,46 +257,7 @@ abstract contract Helper is Test {
         _;
     }
 
-    // check generator and validator allowances before and after function execution
-    // used in coordinator test
-    modifier checkAllowances() {
-        uint256[] memory generatorAllowancesBefore = new uint256[](oracleParameters.numGenerations);
-        uint256[] memory validatorAllowancesBefore;
-
-        // get generator allowances before function execution
-        for (uint256 i = 0; i < oracleParameters.numGenerations; i++) {
-            generatorAllowancesBefore[i] = token.allowance(address(oracleCoordinator), generators[i]);
-        }
-
-        // numValidations is greater than 0
-        if (oracleParameters.numValidations > 0) {
-            validatorAllowancesBefore = new uint256[](oracleParameters.numValidations);
-            for (uint256 i = 0; i < oracleParameters.numValidations; i++) {
-                validatorAllowancesBefore[i] = token.allowance(address(oracleCoordinator), validators[i]);
-            }
-            // execute function
-            _;
-
-            // validator allowances after function execution
-            (,,,,, uint256 valFee,,,) = oracleCoordinator.requests(1);
-            for (uint256 i = 0; i < oracleParameters.numValidations; i++) {
-                uint256 allowanceAfter = token.allowance(address(oracleCoordinator), validators[i]);
-                assertEq(allowanceAfter - validatorAllowancesBefore[i], valFee * oracleParameters.numGenerations);
-            }
-        } else {
-            // if no validations skip validator checks
-            _;
-        }
-
-        // validate generator allowances after function execution
-        for (uint256 i = 0; i < oracleParameters.numGenerations; i++) {
-            uint256 allowanceAfter = token.allowance(address(oracleCoordinator), generators[i]);
-            (,,,, uint256 expectedIncrease,,,,) = oracleCoordinator.requests(1);
-            assertEq(allowanceAfter - generatorAllowancesBefore[i], expectedIncrease);
-        }
-    }
-
-    // Mines a valid nonce until the hash meets the difficulty target
+    // @notice Mines a valid nonce until the hash meets the difficulty target.
     function mineNonce(address responder, uint256 taskId) internal view returns (uint256) {
         // get the task
         (address requester,,,,,,,,) = oracleCoordinator.requests(taskId);
@@ -305,6 +273,7 @@ abstract contract Helper is Test {
         }
     }
 
+    /// @notice Makes a request to Oracle Coordinator
     modifier safeRequest(address requester, uint256 taskId) {
         (uint256 _total, uint256 _generator, uint256 _validator) = oracleCoordinator.getFee(oracleParameters);
 
@@ -334,18 +303,30 @@ abstract contract Helper is Test {
         _;
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                 FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Responds to task
+    /// @param responder Responder address
+    /// @param output Output of the task
+    /// @param taskId Task Id
     function safeRespond(address responder, bytes memory output, uint256 taskId) internal {
         uint256 nonce = mineNonce(responder, taskId);
         vm.prank(responder);
         oracleCoordinator.respond(taskId, nonce, output, metadata);
     }
 
+    /// @notice Validates the task
+    /// @param validator Validator address
+    /// @param taskId Task Id
     function safeValidate(address validator, uint256 taskId) internal {
         uint256 nonce = mineNonce(validator, taskId);
         vm.prank(validator);
         oracleCoordinator.validate(taskId, nonce, scores, metadata);
     }
 
+    /// @notice Makes a purchase request to Oracle Coordinator
     function safePurchase(address buyer, BuyerAgent buyerAgent, uint256 taskId) public {
         address[] memory listedAssets = swan.getListedAssets(address(buyerAgent), currRound);
 
@@ -373,6 +354,7 @@ abstract contract Helper is Test {
         buyerAgent.purchase();
     }
 
+    /// @dev Sets market parameters
     function setMarketParameters(SwanMarketParameters memory newMarketParameters) public {
         vm.prank(dria);
         swan.setMarketParameters(newMarketParameters);
@@ -384,6 +366,7 @@ abstract contract Helper is Test {
         assertEq(_newMarketParameters.withdrawInterval, newMarketParameters.withdrawInterval);
     }
 
+    /// @dev Checks if the round, phase and timeRemaining is correct
     function checkRoundAndPhase(BuyerAgent agent, BuyerAgent.Phase phase, uint256 round)
         public
         view

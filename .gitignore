@@ -2,7 +2,7 @@
 cache/
 out/
 
-# coverage
+# Coverage
 coverage/
 
 # Ignores development broadcast logs
@@ -14,21 +14,13 @@ coverage/
 # Docs
 docs/
 
-# Dotenv file
-.env
-
 # Forge files
 cache/
 out/
 storage/
 
-# gas snapshot
+# Gas snapshot
 .gas-snapshot/
-
-# Ignores development broadcast logs
-!/broadcast
-/broadcast/*/31337/
-/broadcast/**/dry-run/
 
 # Dotenv file
 .env

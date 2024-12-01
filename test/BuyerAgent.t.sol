@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.20;
 
+import {Upgrades} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {Helper} from "./Helper.t.sol";
+
 import {WETH9} from "./WETH9.sol";
-import {Upgrades} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
 import {BuyerAgent, BuyerAgentFactory} from "../src/BuyerAgent.sol";
 import {LLMOracleCoordinator} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
 import {SwanAssetFactory} from "../src/SwanAsset.sol";
 import {LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOracleTask.sol";
 import {LLMOracleRegistry} from "@firstbatch/dria-oracle-contracts/LLMOracleRegistry.sol";
 import {Swan} from "../src/Swan.sol";
-import {console} from "forge-std/Test.sol";
 
 contract BuyerAgentTest is Helper {
     address agentOwner;
@@ -36,7 +36,7 @@ contract BuyerAgentTest is Helper {
             "LLMOracleCoordinator.sol",
             abi.encodeCall(
                 LLMOracleCoordinator.initialize,
-                (address(oracleRegistry), address(token), fees.platformFee, fees.generationFee, fees.validationFee)
+                (address(oracleRegistry), address(token), fees.platformFee, fees.generatorFee, fees.validatorFee)
             )
         );
         oracleCoordinator = LLMOracleCoordinator(coordinatorProxy);

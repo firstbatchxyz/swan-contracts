@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.20;
 
-import {LLMOracleRegistry} from "@firstbatch/dria-oracle-contracts/LLMOracleRegistry.sol";
 import {Upgrades} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
-import {
-    LLMOracleCoordinator, LLMOracleTaskParameters
-} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
+import {Vm} from "forge-std/Vm.sol";
+import {Helper} from "./Helper.t.sol";
+
 import {BuyerAgent, BuyerAgentFactory} from "../src/BuyerAgent.sol";
 import {SwanAssetFactory, SwanAsset} from "../src/SwanAsset.sol";
 import {Swan, SwanMarketParameters} from "../src/Swan.sol";
 import {WETH9} from "./WETH9.sol";
-import {Vm} from "forge-std/Vm.sol";
-import {Helper} from "./Helper.t.sol";
+import {LLMOracleRegistry} from "@firstbatch/dria-oracle-contracts/LLMOracleRegistry.sol";
+import {
+    LLMOracleCoordinator, LLMOracleTaskParameters
+} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
 
 contract SwanIntervalsTest is Helper {
     modifier deployment() {
@@ -33,7 +34,7 @@ contract SwanIntervalsTest is Helper {
             "LLMOracleCoordinator.sol",
             abi.encodeCall(
                 LLMOracleCoordinator.initialize,
-                (address(oracleRegistry), address(token), fees.platformFee, fees.generationFee, fees.validationFee)
+                (address(oracleRegistry), address(token), fees.platformFee, fees.generatorFee, fees.validatorFee)
             )
         );
         oracleCoordinator = LLMOracleCoordinator(coordinatorProxy);
@@ -77,7 +78,7 @@ contract SwanIntervalsTest is Helper {
         checkRoundAndPhase(buyerAgents[0], BuyerAgent.Phase.Sell, 0);
     }
 
-    /// @notice Check the current phase is Buy increase time to buy phase
+    /// @notice Check the current phase is Buy after increase time to buy phase
     function test_InBuyPhase() external deployment createBuyers {
         vm.warp(buyerAgents[0].createdAt() + swan.getCurrentMarketParameters().sellInterval);
         checkRoundAndPhase(buyerAgents[0], BuyerAgent.Phase.Buy, 0);
