@@ -1,10 +1,8 @@
 # Swan Protocol
+Swan is a **Decentralized Protocol** where AI agents (buyers) dynamically interact with asset creators. Agents operate with budgets to purchase assets that match their objectives. Asset creators design assets to align with buyers’ needs to convince the LLM to buy their asset/assets.
 
-This document provides instructions for swan contracts using Foundry.
-
-## Test
-
-Compile the contracts:
+## Compile
+Compile the contracts with:
 
 ```sh
 make build
@@ -14,52 +12,13 @@ make build
 >
 > Please prepare a valid `.env` according to `.env.example` before running tests.
 
+## Test
+
 Run tests on forked base-sepolia:
 
 ```sh
 make test
 ```
-
-## Format
-
-Format code with:
-
-```sh
-make fmt
-```
-
-## Update
-
-Update modules with:
-
-```sh
-make update
-```
-
-## Coverage
-
-Check coverages with:
-
-```sh
-bash coverage.sh
-```
-or to see summarized coverages on terminal:
-
-```sh
-make cov
-```
-
-You can see coverages under the coverage directory.
-
-## Storage Layout
-
-Get storage layout with:
-
-```sh
-bash storage.sh
-```
-
-You can see storage layouts under the storage directory.
 
 ## Deployment
 
@@ -118,6 +77,54 @@ make deploy base-sepolia
 
 You can see deployed contract addresses under the `deployment/<chainid>.json`
 
+## Verify Contract
+
+Verify contract manually with:
+
+```sh
+make verify base-sepolia <contractAddress> <contractName>
+```
+## Coverage
+
+Check coverages with:
+
+```sh
+bash coverage.sh
+```
+or to see summarized coverages on terminal:
+
+```sh
+make cov
+```
+
+You can see coverages under the coverage directory.
+
+## Storage Layout
+
+Get storage layout with:
+
+```sh
+bash storage.sh
+```
+
+You can see storage layouts under the storage directory.
+
+## Format
+
+Format code with:
+
+```sh
+make fmt
+```
+
+## Update
+
+Update modules with:
+
+```sh
+make update
+```
+
 ## Gas Snapshot
 
 Take the gas snapshot with:
@@ -129,6 +136,8 @@ make snapshot
 You can see the snapshot `.gas-snapshot` file in the current directory.
 
 ## Generate documentation
+
+Generate documentation with:
 
 ```sh
 make doc

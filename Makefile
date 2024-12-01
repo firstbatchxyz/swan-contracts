@@ -1,9 +1,11 @@
 -include .env
 
-.PHONY: build test local-key base-sepolia-key deploy anvil install update doc
+.PHONY: build test local-key base-sepolia-key deploy update
 
 # Capture the network name
 network := $(word 2, $(MAKECMDGOALS))
+contractAddress := $(word 3, $(MAKECMDGOALS))
+contractName := $(word 4, $(MAKECMDGOALS))
 
 # Default to forked base-sepolia network
 KEY_NAME := local-key
@@ -57,7 +59,11 @@ fmt:
 cov:
 	forge coverage --no-match-coverage "(test|mock|script)"
 
-# TODO: forge-verify
+# Verify contract on blockscout
+verify:
+	forge verify-contract $(contractAddress) src/$(contractName).sol:$(contractName) --verifier blockscout --verifier-url https://base-sepolia.blockscout.com/api/
 
-# Prevent make from interpreting the network name as a target
+# Prevent make from interpreting params as a target
 $(eval $(network):;@:)
+$(eval $(contractAddress):;@:)
+$(eval $(contractName):;@:)
