@@ -307,8 +307,8 @@ contract Swan is SwanManager, UUPSUpgradeable {
     /// @notice Function to transfer the royalties to the seller & Dria.
     function transferRoyalties(AssetListing storage asset) internal {
         // calculate fees
-        uint256 buyerFee = (asset.price * asset.feeRoyalty * 100) / BASIS_POINTS;
-        uint256 driaFee = (buyerFee * getCurrentMarketParameters().platformFee * 100) / BASIS_POINTS;
+        uint256 buyerFee = (asset.price * asset.feeRoyalty) / (BASIS_POINTS * BASIS_POINTS);
+        uint256 driaFee = (buyerFee * asset.feeRoyalty * getCurrentMarketParameters().platformFee) / (BASIS_POINTS * BASIS_POINTS);
 
         // first, Swan receives the entire fee from seller
         // this allows only one approval from the seller's side
