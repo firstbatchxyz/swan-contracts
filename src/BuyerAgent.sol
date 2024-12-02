@@ -318,9 +318,9 @@ contract BuyerAgent is Ownable {
         // example:
         // |------------->             | (roundTime)
         // |--Sell--|--Buy--|-Withdraw-| (cycleTime)
-        if (roundTime < params.sellInterval) {
+        if (roundTime <= params.sellInterval) {
             return (round, Phase.Sell, params.sellInterval - roundTime);
-        } else if (roundTime < (params.sellInterval + params.buyInterval)) {
+        } else if (roundTime <= (params.sellInterval + params.buyInterval)) {
             return (round, Phase.Buy, params.sellInterval + params.buyInterval - roundTime);
         } else {
             return (round, Phase.Withdraw, cycleTime - roundTime);
