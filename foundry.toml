@@ -16,7 +16,7 @@ optimizer = true
 fuzz_runs = 100
 
 # invariant options
-invariant_runs = 20
+invariant_runs = 50
 
 # block timestamp starts from 10
 block_timestamp = 10

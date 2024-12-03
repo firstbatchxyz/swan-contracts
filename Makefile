@@ -61,7 +61,7 @@ fmt:
 
 # Coverage
 cov:
-	forge clean && forge coverage --no-match-coverage "(test|mock|script)" --no-match-contract "InvariantTest" --jobs 4
+	forge clean && forge coverage --no-match-coverage "(test|mock|script)" --jobs 4
 
 # Verify contract on blockscout
 verify:

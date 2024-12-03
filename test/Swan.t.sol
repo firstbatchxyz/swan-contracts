@@ -15,6 +15,7 @@ import {
 } from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {console} from "forge-std/Test.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 contract SwanTest is Helper {
     /// @dev Fund geerators, validators, sellers, and dria
@@ -41,6 +42,18 @@ contract SwanTest is Helper {
             vm.label(address(sellers[i]), string.concat("Seller#", vm.toString(i + 1)));
         }
         _;
+    }
+
+    function test_TransferOwnership() external {
+        address newOwner = address(0);
+
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableInvalidOwner.selector, newOwner));
+        vm.startPrank(dria);
+        swan.transferOwnership(newOwner);
+
+        newOwner = address(0x123);
+        swan.transferOwnership(newOwner);
+        assertEq(swan.owner(), newOwner);
     }
 
     function test_CreateBuyerAgents() external createBuyers fund {
@@ -402,6 +415,10 @@ contract SwanTest is Helper {
         uint256 sellPhaseOfTheSecondRound = buyerAgent.createdAt() + marketParameters.sellInterval
             + marketParameters.buyInterval + marketParameters.withdrawInterval;
         increaseTime(sellPhaseOfTheSecondRound, buyerAgent, BuyerAgent.Phase.Sell, 1);
+
+        vm.prank(sellers[0]);
+        vm.expectRevert(abi.encodeWithSelector(Swan.InvalidPrice.selector, 0));
+        swan.relist(listedAssetAddr, address(buyerAgentToRelist), 0);
 
         // try to relist an asset by another seller
         vm.recordLogs();

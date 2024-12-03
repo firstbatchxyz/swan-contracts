@@ -313,6 +313,12 @@ abstract contract Helper is Test {
     /// @param assetCount Number of assets that will be listed.
     /// @param buyerAgent Agent that assets will be list for.
     modifier listAssets(address seller, uint256 assetCount, address buyerAgent) {
+        uint256 invalidPrice = BuyerAgent(buyerAgent).amountPerRound();
+
+        vm.expectRevert(abi.encodeWithSelector(Swan.InvalidPrice.selector, invalidPrice));
+        vm.prank(seller);
+        swan.list("SwanAsset", "SA", "description or the swan asset", invalidPrice, buyerAgent);
+
         vm.recordLogs();
         vm.startPrank(seller);
         for (uint256 i = 0; i < assetCount; i++) {
