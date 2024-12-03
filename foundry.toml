@@ -5,11 +5,23 @@ test = 'test'
 script = 'script'
 out = 'out'
 cache_path  = 'cache'
+extra_output = ['storageLayout']
+
 ffi = true
 ast = true
 build_info = true
 optimizer = true
-extra_output = ['storageLayout']
+
+# fuzzing options
+fuzz_runs = 100
+
+# invariant options
+invariant_runs = 20
+
+# block timestamp starts from 10
+block_timestamp = 10
+
+# fs permissions for deployment
 fs_permissions = [{ access = "read", path = "out" }, { access = "write", path = "deployment" }]
 remappings = [
     "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
@@ -17,5 +29,6 @@ remappings = [
     "@openzeppelin/foundry-upgrades/=lib/openzeppelin-foundry-upgrades/src/",
     "@firstbatch/dria-oracle-contracts/=lib/dria-oracle-contracts/src/"
 ]
+
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

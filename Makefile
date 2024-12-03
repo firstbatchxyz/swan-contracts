@@ -28,13 +28,17 @@ update:
 build:
 	forge clean && forge build
 
-# Generate gas snapshot under snapshots directory
+# Generate gas snapshot
 snapshot:
 	forge snapshot
 
-# Test the contracts on forked base-sepolia network
+# Test the contracts forked base-sepolia network with 4 parallel jobs
 test:
-	forge clean && forge test --fork-url $(BASE_TEST_RPC_URL)
+	forge clean && forge test --fork-url $(BASE_TEST_RPC_URL) --no-match-contract "InvariantTest" --jobs 4
+
+# Run invariant tests on local network with 4 parallel jobs
+test-inv:
+	forge clean && forge test --match-contract "InvariantTest" --jobs 4
 
 anvil:
 	anvil --fork-url $(BASE_TEST_RPC_URL)
@@ -57,7 +61,7 @@ fmt:
 
 # Coverage
 cov:
-	forge coverage --no-match-coverage "(test|mock|script)"
+	forge clean && forge coverage --no-match-coverage "(test|mock|script)" --no-match-contract "InvariantTest" --jobs 4
 
 # Verify contract on blockscout
 verify:

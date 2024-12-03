@@ -13,11 +13,13 @@ import {LLMOracleRegistry} from "@firstbatch/dria-oracle-contracts/LLMOracleRegi
 import {
     LLMOracleCoordinator, LLMOracleTaskParameters
 } from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {console} from "forge-std/Test.sol";
 
 contract SwanTest is Helper {
     /// @dev Fund geerators, validators, sellers, and dria
     modifier fund() {
-        scores = [10];
+        scores = [10, 15];
 
         // fund dria
         deal(address(token), dria, 1 ether);
@@ -59,6 +61,7 @@ contract SwanTest is Helper {
         fund
         createBuyers
         sellersApproveToSwan
+        addValidatorsToWhitelist
         registerOracles
         listAssets(sellers[0], marketParameters.maxAssetCount, address(buyerAgents[0]))
     {
@@ -74,6 +77,7 @@ contract SwanTest is Helper {
         fund
         createBuyers
         sellersApproveToSwan
+        addValidatorsToWhitelist
         registerOracles
         listAssets(sellers[0], marketParameters.maxAssetCount, address(buyerAgents[0]))
     {
@@ -91,6 +95,7 @@ contract SwanTest is Helper {
         fund
         createBuyers
         sellersApproveToSwan
+        addValidatorsToWhitelist
         registerOracles
         listAssets(sellers[0], marketParameters.maxAssetCount, address(buyerAgents[0]))
     {
@@ -108,6 +113,7 @@ contract SwanTest is Helper {
         fund
         createBuyers
         sellersApproveToSwan
+        addValidatorsToWhitelist
         registerOracles
         listAssets(sellers[0], marketParameters.maxAssetCount, address(buyerAgents[0]))
     {
@@ -128,6 +134,7 @@ contract SwanTest is Helper {
         fund
         createBuyers
         sellersApproveToSwan
+        addValidatorsToWhitelist
         registerOracles
         listAssets(sellers[0], marketParameters.maxAssetCount, address(buyerAgents[0]))
     {
@@ -148,6 +155,7 @@ contract SwanTest is Helper {
 
         // respond
         safeRespond(generators[0], encodedOutput, 1);
+        safeRespond(generators[1], encodedOutput, 1);
 
         // validate
         safeValidate(validators[0], 1);
@@ -167,6 +175,7 @@ contract SwanTest is Helper {
         fund
         createBuyers
         sellersApproveToSwan
+        addValidatorsToWhitelist
         registerOracles
         listAssets(sellers[0], marketParameters.maxAssetCount, address(buyerAgents[0]))
     {
@@ -178,8 +187,16 @@ contract SwanTest is Helper {
         safePurchase(buyerAgentOwners[0], buyerAgents[0], 1);
         Vm.Log[] memory entries = vm.getRecordedLogs();
 
+        // 1. Transfer
+        // 2. Transfer
+        // 3. Transfer
+        // 4. Transfer
+        // 5. AssetSold (from Swan)
+        // 6. Purchase (from BuyerAgent)
+        assertEq(entries.length, 6);
+
         // get the AssetSold event
-        Vm.Log memory assetSoldEvent = entries[entries.length - 1];
+        Vm.Log memory assetSoldEvent = entries[entries.length - 2];
 
         // check event sig
         bytes32 eventSig = assetSoldEvent.topics[0];
@@ -187,11 +204,11 @@ contract SwanTest is Helper {
 
         // decode params from event
         address _seller = abi.decode(abi.encode(assetSoldEvent.topics[1]), (address));
-        address agent = abi.decode(abi.encode(assetSoldEvent.topics[2]), (address));
+        address _agent = abi.decode(abi.encode(assetSoldEvent.topics[2]), (address));
         address asset = abi.decode(abi.encode(assetSoldEvent.topics[3]), (address));
         uint256 price = abi.decode(assetSoldEvent.data, (uint256));
 
-        assertEq(agent, address(buyerAgents[0]));
+        assertEq(_agent, address(buyerAgents[0]));
         assertEq(asset, buyerAgents[0].inventory(0, 0));
 
         // get asset details
@@ -213,6 +230,7 @@ contract SwanTest is Helper {
         fund
         createBuyers
         sellersApproveToSwan
+        addValidatorsToWhitelist
         registerOracles
         listAssets(sellers[0], marketParameters.maxAssetCount, address(buyerAgents[0]))
     {
@@ -236,6 +254,8 @@ contract SwanTest is Helper {
         buyerAgent.oracleStateRequest(input, models);
 
         safeRespond(generators[0], newState, taskId);
+        safeRespond(generators[1], newState, taskId);
+
         safeValidate(validators[0], taskId);
 
         vm.prank(buyerAgentOwner);
@@ -310,6 +330,7 @@ contract SwanTest is Helper {
         fund
         createBuyers
         sellersApproveToSwan
+        addValidatorsToWhitelist
         registerOracles
         listAssets(sellers[0], marketParameters.maxAssetCount, address(buyerAgents[0]))
     {
@@ -343,6 +364,7 @@ contract SwanTest is Helper {
         fund
         createBuyers
         sellersApproveToSwan
+        addValidatorsToWhitelist
         registerOracles
         listAssets(sellers[0], marketParameters.maxAssetCount, address(buyerAgents[0]))
     {
@@ -367,6 +389,7 @@ contract SwanTest is Helper {
         fund
         createBuyers
         sellersApproveToSwan
+        addValidatorsToWhitelist
         registerOracles
         listAssets(sellers[0], marketParameters.maxAssetCount, address(buyerAgents[0]))
     {
@@ -416,6 +439,7 @@ contract SwanTest is Helper {
         fund
         createBuyers
         sellersApproveToSwan
+        addValidatorsToWhitelist
         registerOracles
         listAssets(sellers[0], marketParameters.maxAssetCount, address(buyerAgents[0]))
     {
@@ -441,6 +465,7 @@ contract SwanTest is Helper {
         fund
         createBuyers
         sellersApproveToSwan
+        addValidatorsToWhitelist
         registerOracles
         listAssets(sellers[0], marketParameters.maxAssetCount, address(buyerAgents[0]))
     {

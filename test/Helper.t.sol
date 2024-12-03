@@ -65,13 +65,17 @@ abstract contract Helper is Test {
     uint256 amountPerRound = 0.015 ether;
     uint8 feeRoyalty = 2;
 
-    // Default scores for validation
+    /// @dev Default scores for validation
     uint256[] scores = [1, 5, 70];
+
+    uint256 public minRegistrationTime = 1 days; // in seconds
+    uint256 public minScore = 1;
+    uint256 public maxScore = type(uint8).max; // 255
 
     /// @notice The given nonce is not a valid proof-of-work.
     error InvalidNonceFromHelperTest(uint256 taskId, uint256 nonce, uint256 computedNonce, address caller);
 
-    // Set parameters for the test
+    // @dev Set parameters for the test
     function setUp() public deployment {
         dria = vm.addr(1);
         validators = [vm.addr(2), vm.addr(3), vm.addr(4)];
@@ -79,7 +83,7 @@ abstract contract Helper is Test {
         buyerAgentOwners = [vm.addr(8), vm.addr(9)];
         sellers = [vm.addr(10), vm.addr(11)];
 
-        oracleParameters = LLMOracleTaskParameters({difficulty: 1, numGenerations: 1, numValidations: 1});
+        oracleParameters = LLMOracleTaskParameters({difficulty: 1, numGenerations: 2, numValidations: 1});
         marketParameters = SwanMarketParameters({
             withdrawInterval: 300, // 5 minutes
             sellInterval: 360,
@@ -92,7 +96,7 @@ abstract contract Helper is Test {
         });
 
         stakes = Stakes({generatorStakeAmount: 0.01 ether, validatorStakeAmount: 0.01 ether});
-        fees = Fees({platformFee: 0.0001 ether, generatorFee: 0.0002 ether, validatorFee: 0.00003 ether});
+        fees = Fees({platformFee: 1, generationFee: 0.0002 ether, validationFee: 0.00003 ether});
 
         for (uint96 i = 0; i < buyerAgentOwners.length; i++) {
             buyerAgentParameters.push(
@@ -125,7 +129,8 @@ abstract contract Helper is Test {
         address registryProxy = Upgrades.deployUUPSProxy(
             "LLMOracleRegistry.sol",
             abi.encodeCall(
-                LLMOracleRegistry.initialize, (stakes.generatorStakeAmount, stakes.validatorStakeAmount, address(token))
+                LLMOracleRegistry.initialize,
+                (stakes.generatorStakeAmount, stakes.validatorStakeAmount, address(token), minRegistrationTime)
             )
         );
         oracleRegistry = LLMOracleRegistry(registryProxy);
@@ -134,7 +139,15 @@ abstract contract Helper is Test {
             "LLMOracleCoordinator.sol",
             abi.encodeCall(
                 LLMOracleCoordinator.initialize,
-                (address(oracleRegistry), address(token), fees.platformFee, fees.generatorFee, fees.validatorFee)
+                (
+                    address(oracleRegistry),
+                    address(token),
+                    fees.platformFee,
+                    fees.generationFee,
+                    fees.validationFee,
+                    minScore,
+                    maxScore
+                )
             )
         );
         oracleCoordinator = LLMOracleCoordinator(coordinatorProxy);
@@ -167,6 +180,17 @@ abstract contract Helper is Test {
         vm.label(address(oracleCoordinator), "LLMOracleCoordinator");
         vm.label(address(buyerAgentFactory), "BuyerAgentFactory");
         vm.label(address(swanAssetFactory), "SwanAssetFactory");
+    }
+
+    /// @notice Add validators to the whitelist.
+    modifier addValidatorsToWhitelist() {
+        vm.prank(dria);
+        oracleRegistry.addToWhitelist(validators);
+
+        for (uint256 i; i < validators.length; i++) {
+            vm.assertTrue(oracleRegistry.whitelisted(validators[i]));
+        }
+        _;
     }
 
     /// @notice Register generators and validators
@@ -460,11 +484,12 @@ abstract contract Helper is Test {
 
         // respond
         safeRespond(generators[0], encodedOutput, taskId);
+        safeRespond(generators[1], encodedOutput, taskId);
 
         // validate
         safeValidate(validators[0], taskId);
 
-        assert(token.balanceOf(address(buyerAgent)) > assetPrice);
+        assertGe(token.balanceOf(address(buyerAgent)), assetPrice);
 
         // purchase and check event logs
         vm.recordLogs();

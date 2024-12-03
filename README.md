@@ -14,10 +14,15 @@ make build
 
 ## Test
 
-Run tests on forked base-sepolia:
+Run tests on forked base-sepolia with:
 
 ```sh
 make test
+```
+
+Run invariant tests on local with:
+```sh
+make test-inv
 ```
 
 ## Deployment

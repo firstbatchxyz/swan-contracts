@@ -48,6 +48,22 @@ contract BuyerAgent is Ownable {
     error TaskAlreadyProcessed();
 
     /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+    
+    /// @notice Emitted when a state update request is made.
+    event StateRequest(uint256 indexed taskId, uint256 indexed round);
+
+    /// @notice Emitted when a purchase request is made.
+    event PurchaseRequest(uint256 indexed taskId, uint256 indexed round);
+
+    /// @notice Emitted when a purchase is made.
+    event Purchase(uint256 indexed round);
+
+    /// @notice Emitted when the state is updated.
+    event StateUpdate(uint256 indexed round);
+
+    /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
 
@@ -178,6 +194,8 @@ contract BuyerAgent is Ownable {
 
         oracleStateRequests[round] =
             swan.coordinator().request(SwanBuyerStateOracleProtocol, _input, _models, swan.getOracleParameters());
+
+        emit StateRequest(oracleStateRequests[round], round);
     }
 
     /// @notice Calls the LLMOracleCoordinator & pays for the oracle fees to make a purchase request.
@@ -193,6 +211,8 @@ contract BuyerAgent is Ownable {
 
         oraclePurchaseRequests[round] =
             swan.coordinator().request(SwanBuyerPurchaseOracleProtocol, _input, _models, swan.getOracleParameters());
+
+        emit PurchaseRequest(oraclePurchaseRequests[round], round);
     }
 
     /// @notice Function to update the Buyer state.
@@ -214,6 +234,8 @@ contract BuyerAgent is Ownable {
 
         // update taskId as completed
         isOracleRequestProcessed[taskId] = true;
+
+        emit StateUpdate(round);
     }
 
     /// @notice Function to buy the asset from the Swan with the given assed address.
@@ -254,6 +276,8 @@ contract BuyerAgent is Ownable {
 
         // update taskId as completed
         isOracleRequestProcessed[taskId] = true;
+
+        emit Purchase(round);
     }
 
     /// @notice Function to withdraw the tokens from the contract.

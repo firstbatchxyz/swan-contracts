@@ -4,18 +4,21 @@ pragma solidity ^0.8.20;
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
-import {LLMOracleCoordinator} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
-import {LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOracleTask.sol";
+import {LLMOracleCoordinator, LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
 import {BuyerAgentFactory, BuyerAgent} from "./BuyerAgent.sol";
 import {SwanAssetFactory, SwanAsset} from "./SwanAsset.sol";
 import {SwanManager, SwanMarketParameters} from "./SwanManager.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-// Protocol strings for Swan, checked in the Oracle.
+// @dev Protocol strings for Swan, checked in the Oracle.
 bytes32 constant SwanBuyerPurchaseOracleProtocol = "swan-buyer-purchase/0.1.0";
 bytes32 constant SwanBuyerStateOracleProtocol = "swan-buyer-state/0.1.0";
+
+/// @dev Used to calculate the fee for the buyer agent to be able to compute correct amount.
 uint256 constant BASIS_POINTS = 10_000;
 
 contract Swan is SwanManager, UUPSUpgradeable {
+    using Math for uint256;
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -307,15 +310,16 @@ contract Swan is SwanManager, UUPSUpgradeable {
     /// @notice Function to transfer the royalties to the seller & Dria.
     function transferRoyalties(AssetListing storage asset) internal {
         // calculate fees
-        uint256 buyerFee = (asset.price * asset.feeRoyalty) / (BASIS_POINTS * BASIS_POINTS);
-        uint256 driaFee = (buyerFee * asset.feeRoyalty * getCurrentMarketParameters().platformFee) / (BASIS_POINTS * BASIS_POINTS);
+        uint256 totalFee = Math.mulDiv(asset.price, (asset.feeRoyalty * 100), BASIS_POINTS);
+        uint256 driaFee = Math.mulDiv(totalFee, (getCurrentMarketParameters().platformFee * 100), BASIS_POINTS);
+        uint256 buyerFee = totalFee - driaFee;
 
         // first, Swan receives the entire fee from seller
         // this allows only one approval from the seller's side
-        token.transferFrom(asset.seller, address(this), buyerFee);
+        token.transferFrom(asset.seller, address(this), totalFee);
 
         // send the buyer's portion to them
-        token.transfer(asset.buyer, buyerFee - driaFee);
+        token.transfer(asset.buyer, buyerFee);
 
         // then it sends the remaining to Swan owner
         token.transfer(owner(), driaFee);
