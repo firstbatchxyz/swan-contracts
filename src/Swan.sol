@@ -4,7 +4,9 @@ pragma solidity ^0.8.20;
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
-import {LLMOracleCoordinator, LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
+import {
+    LLMOracleCoordinator, LLMOracleTaskParameters
+} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
 import {BuyerAgentFactory, BuyerAgent} from "./BuyerAgent.sol";
 import {SwanAssetFactory, SwanAsset} from "./SwanAsset.sol";
 import {SwanManager, SwanMarketParameters} from "./SwanManager.sol";
@@ -161,8 +163,8 @@ contract Swan is SwanManager, UUPSUpgradeable {
     /// @param newOwner address of the new owner.
     function transferOwnership(address newOwner) public override onlyOwner {
         if (newOwner == address(0)) {
-        revert OwnableInvalidOwner(address(0));
-}
+            revert OwnableInvalidOwner(address(0));
+        }
         // remove the old owner from the operator list
         isOperator[msg.sender] = false;
 
@@ -378,5 +380,4 @@ contract Swan is SwanManager, UUPSUpgradeable {
     function getListing(address _asset) external view returns (AssetListing memory) {
         return listings[_asset];
     }
-
 }

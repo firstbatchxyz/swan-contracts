@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.20;
 
-import {Ownable} from  "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOracleTask.sol";
 import {Swan, SwanBuyerPurchaseOracleProtocol, SwanBuyerStateOracleProtocol} from "./Swan.sol";
 import {SwanMarketParameters} from "./SwanManager.sol";
@@ -50,7 +50,7 @@ contract BuyerAgent is Ownable {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
-    
+
     /// @notice Emitted when a state update request is made.
     event StateRequest(uint256 indexed taskId, uint256 indexed round);
 
@@ -146,7 +146,7 @@ contract BuyerAgent is Ownable {
         if (_feeRoyalty < 1 || _feeRoyalty > swan.getCurrentMarketParameters().maxBuyerAgentFee) {
             revert InvalidFee(_feeRoyalty);
         }
-        
+
         feeRoyalty = _feeRoyalty;
         amountPerRound = _amountPerRound;
         name = _name;

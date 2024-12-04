@@ -3,7 +3,11 @@ pragma solidity ^0.8.20;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {LLMOracleTask, LLMOracleTaskParameters, LLMOracleCoordinator} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
+import {
+    LLMOracleTask,
+    LLMOracleTaskParameters,
+    LLMOracleCoordinator
+} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
 
 /// @notice Collection of market-related parameters.
 /// @dev Prevents stack-too-deep.
