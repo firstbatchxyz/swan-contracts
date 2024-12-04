@@ -58,10 +58,10 @@ contract BuyerAgent is Ownable {
     event PurchaseRequest(uint256 indexed taskId, uint256 indexed round);
 
     /// @notice Emitted when a purchase is made.
-    event Purchase(uint256 indexed round);
+    event Purchase(uint256 indexed taskId, uint256 indexed round);
 
     /// @notice Emitted when the state is updated.
-    event StateUpdate(uint256 indexed round);
+    event StateUpdate(uint256 indexed taskId, uint256 indexed round);
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -235,7 +235,7 @@ contract BuyerAgent is Ownable {
         // update taskId as completed
         isOracleRequestProcessed[taskId] = true;
 
-        emit StateUpdate(round);
+        emit StateUpdate(taskId, round);
     }
 
     /// @notice Function to buy the asset from the Swan with the given assed address.
@@ -277,7 +277,7 @@ contract BuyerAgent is Ownable {
         // update taskId as completed
         isOracleRequestProcessed[taskId] = true;
 
-        emit Purchase(round);
+        emit Purchase(taskId, round);
     }
 
     /// @notice Function to withdraw the tokens from the contract.
