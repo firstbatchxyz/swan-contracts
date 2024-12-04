@@ -2,20 +2,25 @@
 pragma solidity ^0.8.20;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
-import {LLMOracleTask, LLMOracleTaskParameters, LLMOracleCoordinator} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
-import {SwanManager, SwanMarketParameters} from "./SwanManager.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import {
+    LLMOracleCoordinator, LLMOracleTaskParameters
+} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
 import {BuyerAgentFactory, BuyerAgent} from "./BuyerAgent.sol";
 import {SwanAssetFactory, SwanAsset} from "./SwanAsset.sol";
+import {SwanManager, SwanMarketParameters} from "./SwanManager.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-// Protocol strings for Swan, checked in the Oracle.
+// @dev Protocol strings for Swan, checked in the Oracle.
 bytes32 constant SwanBuyerPurchaseOracleProtocol = "swan-buyer-purchase/0.1.0";
 bytes32 constant SwanBuyerStateOracleProtocol = "swan-buyer-state/0.1.0";
 
-contract Swan is SwanManager, UUPSUpgradeable, IERC721Receiver {
-    using SafeERC20 for ERC20;
+/// @dev Used to calculate the fee for the buyer agent to be able to compute correct amount.
+uint256 constant BASIS_POINTS = 10_000;
+
+contract Swan is SwanManager, UUPSUpgradeable {
+    using Math for uint256;
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -75,7 +80,7 @@ contract Swan is SwanManager, UUPSUpgradeable, IERC721Receiver {
 
     /// @notice Holds the listing information.
     /// @dev `createdAt` is the timestamp of the Asset creation.
-    /// @dev `royaltyFee` is the royaltyFee of the buyerAgent.
+    /// @dev `feeRoyalty` is the royalty fee of the buyerAgent.
     /// @dev `price` is the price of the Asset.
     /// @dev `seller` is the address of the creator of the Asset.
     /// @dev `buyer` is the address of the buyerAgent.
@@ -83,7 +88,7 @@ contract Swan is SwanManager, UUPSUpgradeable, IERC721Receiver {
     /// @dev `status` is the status of the Asset.
     struct AssetListing {
         uint256 createdAt;
-        uint96 royaltyFee;
+        uint96 feeRoyalty;
         uint256 price;
         address seller; // TODO: we can use asset.owner() instead of seller
         address buyer;
@@ -95,12 +100,11 @@ contract Swan is SwanManager, UUPSUpgradeable, IERC721Receiver {
     BuyerAgentFactory public buyerAgentFactory;
     /// @notice Factory contract to deploy SwanAsset tokens.
     SwanAssetFactory public swanAssetFactory;
-    
+
     /// @notice To keep track of the assets for purchase.
     mapping(address asset => AssetListing) public listings;
     /// @notice Keeps track of assets per buyer & round.
     mapping(address buyer => mapping(uint256 round => address[])) public assetsPerBuyerRound;
-
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -111,12 +115,6 @@ contract Swan is SwanManager, UUPSUpgradeable, IERC721Receiver {
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
-    }
-
-    /// @notice Function to receive ERC721 tokens via safe transfer.
-    /// @dev [See more](https://eips.ethereum.org/EIPS/eip-721).
-    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
-        return this.onERC721Received.selector;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -140,7 +138,7 @@ contract Swan is SwanManager, UUPSUpgradeable, IERC721Receiver {
         address _buyerAgentFactory,
         address _swanAssetFactory
     ) public initializer {
-        __SwanManager_init(msg.sender);
+        __Ownable_init(msg.sender);
 
         require(_marketParameters.platformFee <= 100, "Platform fee cannot exceed 100%");
 
@@ -158,6 +156,23 @@ contract Swan is SwanManager, UUPSUpgradeable, IERC721Receiver {
         isOperator[address(this)] = true;
         // owner is an operator
         isOperator[msg.sender] = true;
+    }
+
+    /// @notice Transfer ownership of the contract.
+    /// @dev Overrides the default `transferOwnership` function to make the new owner an operator.
+    /// @param newOwner address of the new owner.
+    function transferOwnership(address newOwner) public override onlyOwner {
+        if (newOwner == address(0)) {
+            revert OwnableInvalidOwner(address(0));
+        }
+        // remove the old owner from the operator list
+        isOperator[msg.sender] = false;
+
+        // transfer ownership
+        _transferOwnership(newOwner);
+
+        // make new owner an operator
+        isOperator[newOwner] = true;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -200,7 +215,7 @@ contract Swan is SwanManager, UUPSUpgradeable, IERC721Receiver {
             revert AssetLimitExceeded(getCurrentMarketParameters().maxAssetCount);
         }
         // check the asset's price is within the acceptable range
-        if (_price < getCurrentMarketParameters().maxAssetCount || _price >= buyer.amountPerRound()) {
+        if (_price < getCurrentMarketParameters().minAssetPrice || _price >= buyer.amountPerRound()) {
             revert InvalidPrice(_price);
         }
 
@@ -208,7 +223,7 @@ contract Swan is SwanManager, UUPSUpgradeable, IERC721Receiver {
         address asset = address(swanAssetFactory.deploy(_name, _symbol, _desc, msg.sender));
         listings[asset] = AssetListing({
             createdAt: block.timestamp,
-            royaltyFee: buyer.royaltyFee(),
+            feeRoyalty: buyer.feeRoyalty(),
             price: _price,
             seller: msg.sender,
             status: AssetStatus.Listed,
@@ -254,6 +269,11 @@ contract Swan is SwanManager, UUPSUpgradeable, IERC721Receiver {
             revert RoundNotFinished(_asset, asset.round);
         }
 
+        // check the asset's price is within the acceptable range
+        if (_price < getCurrentMarketParameters().minAssetPrice || _price >= BuyerAgent(_buyer).amountPerRound()) {
+            revert InvalidPrice(_price);
+        }
+
         // now we move on to the new buyer
         BuyerAgent buyer = BuyerAgent(_buyer);
         (uint256 round, BuyerAgent.Phase phase,) = buyer.getRoundPhase();
@@ -272,7 +292,7 @@ contract Swan is SwanManager, UUPSUpgradeable, IERC721Receiver {
         // create listing
         listings[_asset] = AssetListing({
             createdAt: block.timestamp,
-            royaltyFee: buyer.royaltyFee(),
+            feeRoyalty: buyer.feeRoyalty(),
             price: _price,
             seller: msg.sender,
             status: AssetStatus.Listed,
@@ -292,18 +312,19 @@ contract Swan is SwanManager, UUPSUpgradeable, IERC721Receiver {
     /// @notice Function to transfer the royalties to the seller & Dria.
     function transferRoyalties(AssetListing storage asset) internal {
         // calculate fees
-        uint256 buyerFee = (asset.price * asset.royaltyFee) / 100;
-        uint256 driaFee = (buyerFee * getCurrentMarketParameters().platformFee) / 100;
+        uint256 totalFee = Math.mulDiv(asset.price, (asset.feeRoyalty * 100), BASIS_POINTS);
+        uint256 driaFee = Math.mulDiv(totalFee, (getCurrentMarketParameters().platformFee * 100), BASIS_POINTS);
+        uint256 buyerFee = totalFee - driaFee;
 
         // first, Swan receives the entire fee from seller
         // this allows only one approval from the seller's side
-        token.safeTransferFrom(asset.seller, address(this), buyerFee);
+        token.transferFrom(asset.seller, address(this), totalFee);
 
         // send the buyer's portion to them
-        token.safeTransfer(asset.buyer, buyerFee - driaFee);
+        token.transfer(asset.buyer, buyerFee);
 
         // then it sends the remaining to Swan owner
-        token.safeTransfer(owner(), driaFee);
+        token.transfer(owner(), driaFee);
     }
 
     /// @notice Executes the purchase of a listing for a buyer for the given asset.
@@ -326,12 +347,12 @@ contract Swan is SwanManager, UUPSUpgradeable, IERC721Receiver {
 
         // transfer asset from seller to Swan, and then from Swan to buyer
         // this ensure that only approval to Swan is enough for the sellers
-        SwanAsset(_asset).safeTransferFrom(listing.seller, address(this), 1);
-        SwanAsset(_asset).safeTransferFrom(address(this), listing.buyer, 1);
+        SwanAsset(_asset).transferFrom(listing.seller, address(this), 1);
+        SwanAsset(_asset).transferFrom(address(this), listing.buyer, 1);
 
         // transfer money
-        token.safeTransferFrom(listing.buyer, address(this), listing.price);
-        token.safeTransfer(listing.seller, listing.price);
+        token.transferFrom(listing.buyer, address(this), listing.price);
+        token.transfer(listing.seller, listing.price);
 
         emit AssetSold(listing.seller, msg.sender, _asset, listing.price);
     }
@@ -345,16 +366,12 @@ contract Swan is SwanManager, UUPSUpgradeable, IERC721Receiver {
         swanAssetFactory = SwanAssetFactory(_swanAssetFactory);
     }
 
-    /// @notice Returns the asset status with the given asset address.
-    /// @dev Active: If the asset has not been purchased or the next round has not started.
-    /// @dev Inactive: If the assets's purchaseRound has passed or delisted by the creator of the asset.
-    /// @dev Sold: If the asset has already been purchased by the buyer.
+    /// @notice Returns the asset price with the given asset address.
     function getListingPrice(address _asset) external view returns (uint256) {
         return listings[_asset].price;
     }
 
     /// @notice Returns the number of assets with the given buyer and round.
-    /// @dev Assets can be assumed to be
     function getListedAssets(address _buyer, uint256 _round) external view returns (address[] memory) {
         return assetsPerBuyerRound[_buyer][_round];
     }

@@ -2,10 +2,9 @@
 pragma solidity ^0.8.20;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {LLMOracleTask, LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOracleTask.sol";
+import {LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOracleTask.sol";
 import {Swan, SwanBuyerPurchaseOracleProtocol, SwanBuyerStateOracleProtocol} from "./Swan.sol";
 import {SwanMarketParameters} from "./SwanManager.sol";
-import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
 /// @notice Factory contract to deploy BuyerAgent contracts.
 /// @dev This saves from contract space for Swan.
@@ -13,16 +12,16 @@ contract BuyerAgentFactory {
     function deploy(
         string memory _name,
         string memory _description,
-        uint96 _royaltyFee,
+        uint96 _feeRoyalty,
         uint256 _amountPerRound,
         address _owner
     ) external returns (BuyerAgent) {
-        return new BuyerAgent(_name, _description, _royaltyFee, _amountPerRound, msg.sender, _owner);
+        return new BuyerAgent(_name, _description, _feeRoyalty, _amountPerRound, msg.sender, _owner);
     }
 }
 
 /// @notice BuyerAgent is responsible for buying the assets from Swan.
-contract BuyerAgent is Ownable, IERC721Receiver {
+contract BuyerAgent is Ownable {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -47,6 +46,22 @@ contract BuyerAgent is Ownable, IERC721Receiver {
 
     /// @notice The task was already processed, via `purchase` or `updateState`.
     error TaskAlreadyProcessed();
+
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Emitted when a state update request is made.
+    event StateRequest(uint256 indexed taskId, uint256 indexed round);
+
+    /// @notice Emitted when a purchase request is made.
+    event PurchaseRequest(uint256 indexed taskId, uint256 indexed round);
+
+    /// @notice Emitted when a purchase is made.
+    event Purchase(uint256 indexed taskId, uint256 indexed round);
+
+    /// @notice Emitted when the state is updated.
+    event StateUpdate(uint256 indexed taskId, uint256 indexed round);
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -76,7 +91,7 @@ contract BuyerAgent is Ownable, IERC721Receiver {
     /// @dev Only updated by the oracle via `updateState`.
     bytes public state;
     /// @notice Royalty fees for the buyer agent.
-    uint96 public royaltyFee;
+    uint96 public feeRoyalty;
     /// @notice The max amount of money the agent can spend per round.
     uint256 public amountPerRound;
 
@@ -116,22 +131,23 @@ contract BuyerAgent is Ownable, IERC721Receiver {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Create the buyer agent.
-    /// @dev `_royaltyFee` should be between 1 and 100.
+    /// @dev `_feeRoyalty` should be between 1 and maxBuyerAgentFee in the swan market parameters.
     /// @dev All tokens are approved to the oracle coordinator of operator.
     constructor(
         string memory _name,
         string memory _description,
-        uint96 _royaltyFee,
+        uint96 _feeRoyalty,
         uint256 _amountPerRound,
         address _operator,
         address _owner
     ) Ownable(_owner) {
-        if (_royaltyFee < 1 || _royaltyFee > 100) {
-            revert InvalidFee(_royaltyFee);
-        }
-        royaltyFee = _royaltyFee;
-
         swan = Swan(_operator);
+
+        if (_feeRoyalty < 1 || _feeRoyalty > swan.getCurrentMarketParameters().maxBuyerAgentFee) {
+            revert InvalidFee(_feeRoyalty);
+        }
+
+        feeRoyalty = _feeRoyalty;
         amountPerRound = _amountPerRound;
         name = _name;
         description = _description;
@@ -144,21 +160,14 @@ contract BuyerAgent is Ownable, IERC721Receiver {
         swan.token().approve(address(swan), type(uint256).max);
     }
 
-    /// @notice Function to receive ERC721 tokens via safe transfer.
-    /// @dev [See more](https://eips.ethereum.org/EIPS/eip-721).
-    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
-        return this.onERC721Received.selector;
-    }
-
     /*//////////////////////////////////////////////////////////////
                                   LOGIC
     //////////////////////////////////////////////////////////////*/
 
     /// @notice The minimum amount of money that the buyer must leave within the contract.
-    /// @dev minFundAmount = amountPerRound + 2 * oracleTotalFee
+    /// @dev minFundAmount should be `amountPerRound + oracleFee` to be able to make requests.
     function minFundAmount() public view returns (uint256) {
-        // 2 * oracleFee => one for the next round and one for update state
-        return amountPerRound + 2 * swan.getOracleFee();
+        return amountPerRound + swan.getOracleFee();
     }
 
     /// @notice Reads the best performing result for a given task id, and parses it as an array of addresses.
@@ -185,6 +194,8 @@ contract BuyerAgent is Ownable, IERC721Receiver {
 
         oracleStateRequests[round] =
             swan.coordinator().request(SwanBuyerStateOracleProtocol, _input, _models, swan.getOracleParameters());
+
+        emit StateRequest(oracleStateRequests[round], round);
     }
 
     /// @notice Calls the LLMOracleCoordinator & pays for the oracle fees to make a purchase request.
@@ -200,6 +211,8 @@ contract BuyerAgent is Ownable, IERC721Receiver {
 
         oraclePurchaseRequests[round] =
             swan.coordinator().request(SwanBuyerPurchaseOracleProtocol, _input, _models, swan.getOracleParameters());
+
+        emit PurchaseRequest(oraclePurchaseRequests[round], round);
     }
 
     /// @notice Function to update the Buyer state.
@@ -221,6 +234,8 @@ contract BuyerAgent is Ownable, IERC721Receiver {
 
         // update taskId as completed
         isOracleRequestProcessed[taskId] = true;
+
+        emit StateUpdate(taskId, round);
     }
 
     /// @notice Function to buy the asset from the Swan with the given assed address.
@@ -261,6 +276,8 @@ contract BuyerAgent is Ownable, IERC721Receiver {
 
         // update taskId as completed
         isOracleRequestProcessed[taskId] = true;
+
+        emit Purchase(taskId, round);
     }
 
     /// @notice Function to withdraw the tokens from the contract.
@@ -325,9 +342,9 @@ contract BuyerAgent is Ownable, IERC721Receiver {
         // example:
         // |------------->             | (roundTime)
         // |--Sell--|--Buy--|-Withdraw-| (cycleTime)
-        if (roundTime < params.sellInterval) {
+        if (roundTime <= params.sellInterval) {
             return (round, Phase.Sell, params.sellInterval - roundTime);
-        } else if (roundTime < params.sellInterval + params.buyInterval) {
+        } else if (roundTime <= (params.sellInterval + params.buyInterval)) {
             return (round, Phase.Buy, params.sellInterval + params.buyInterval - roundTime);
         } else {
             return (round, Phase.Withdraw, cycleTime - roundTime);
@@ -365,7 +382,6 @@ contract BuyerAgent is Ownable, IERC721Receiver {
 
                 // accumulate rounds from each intermediate phase, along with a single offset round
                 round += innerRound + 1;
-
                 idx++;
             }
 
@@ -376,6 +392,7 @@ contract BuyerAgent is Ownable, IERC721Receiver {
                 _computePhase(marketParams[idx], block.timestamp - marketParams[idx].timestamp);
             // accumulate the last round as well, along with a single offset round
             round += lastRound + 1;
+
             return (round, phase, timeRemaining);
         }
     }
@@ -383,14 +400,14 @@ contract BuyerAgent is Ownable, IERC721Receiver {
     /// @notice Function to set feeRoyalty.
     /// @dev Only callable by the owner.
     /// @dev Only callable in withdraw phase.
-    /// @param _fee new feeRoyalty, must be between 1 and 100.
-    function setFeeRoyalty(uint96 _fee) public onlyOwner {
+    /// @param newFeeRoyalty must be between 1 and 100.
+    function setFeeRoyalty(uint96 newFeeRoyalty) public onlyOwner {
         _checkRoundPhase(Phase.Withdraw);
 
-        if (_fee < 1 || _fee >= 100) {
-            revert InvalidFee(_fee);
+        if (newFeeRoyalty < 1 || newFeeRoyalty >= 100) {
+            revert InvalidFee(newFeeRoyalty);
         }
-        royaltyFee = _fee;
+        feeRoyalty = newFeeRoyalty;
     }
 
     /// @notice Function to set the amountPerRound.

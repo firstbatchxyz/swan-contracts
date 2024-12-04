@@ -3,7 +3,11 @@ pragma solidity ^0.8.20;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {LLMOracleTask, LLMOracleTaskParameters, LLMOracleCoordinator} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
+import {
+    LLMOracleTask,
+    LLMOracleTaskParameters,
+    LLMOracleCoordinator
+} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
 
 /// @notice Collection of market-related parameters.
 /// @dev Prevents stack-too-deep.
@@ -24,6 +28,8 @@ struct SwanMarketParameters {
     /// @notice Timestamp of the block that this market parameter was added.
     /// @dev Even if this is provided by the user, it will get overwritten by the internal `block.timestamp`.
     uint256 timestamp;
+    /// @notice The maximum fee that a buyer agent can charge.
+    uint8 maxBuyerAgentFee;
 }
 
 abstract contract SwanManager is OwnableUpgradeable {
@@ -53,10 +59,6 @@ abstract contract SwanManager is OwnableUpgradeable {
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
-    }
-
-    function __SwanManager_init(address _owner) public onlyInitializing {
-        __Ownable_init(_owner);
     }
 
     /*//////////////////////////////////////////////////////////////

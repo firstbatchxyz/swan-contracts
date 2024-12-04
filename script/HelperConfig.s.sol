@@ -13,8 +13,8 @@ struct Stakes {
 
 struct Fees {
     uint256 platformFee;
-    uint256 generatorFee;
-    uint256 validatorFee;
+    uint256 generationFee;
+    uint256 validationFee;
 }
 
 contract HelperConfig is Script {
@@ -25,13 +25,14 @@ contract HelperConfig is Script {
     Fees public fees;
     WETH9 public token;
 
-    // local key
-    uint256 public constant ANVIL_KEY = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
+    uint256 public minRegistrationTime; // in seconds
+    uint256 public minScore;
+    uint256 public maxScore;
 
     constructor() {
         // set deployment parameters
         stakes = Stakes({generatorStakeAmount: 0.0001 ether, validatorStakeAmount: 0.000001 ether});
-        fees = Fees({platformFee: 0.0001 ether, generatorFee: 0.0001 ether, validatorFee: 0.0001 ether});
+        fees = Fees({platformFee: 0.0001 ether, generationFee: 0.0001 ether, validationFee: 0.0001 ether});
         taskParams = LLMOracleTaskParameters({difficulty: 2, numGenerations: 1, numValidations: 1});
 
         marketParams = SwanMarketParameters({
@@ -41,8 +42,13 @@ contract HelperConfig is Script {
             withdrawInterval: 15 minutes,
             platformFee: 1, // percentage
             minAssetPrice: 0.00001 ether,
-            timestamp: 0 // will be set in the first call
+            timestamp: 0, // will be set in the first call
+            maxBuyerAgentFee: 75 // percentage
         });
+
+        minRegistrationTime = 1 days;
+        maxScore = type(uint8).max; // 255
+        minScore = 1;
 
         // for base sepolia
         if (block.chainid == 84532) {

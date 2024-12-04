@@ -1,76 +1,26 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.20;
 
-import {LLMOracleRegistry} from "@firstbatch/dria-oracle-contracts/LLMOracleRegistry.sol";
 import {Upgrades} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
-import {
-    LLMOracleCoordinator, LLMOracleTaskParameters
-} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
+import {Vm} from "forge-std/Vm.sol";
+import {Helper} from "./Helper.t.sol";
+
 import {BuyerAgent, BuyerAgentFactory} from "../src/BuyerAgent.sol";
 import {SwanAssetFactory, SwanAsset} from "../src/SwanAsset.sol";
 import {Swan, SwanMarketParameters} from "../src/Swan.sol";
 import {WETH9} from "./WETH9.sol";
-import {Vm} from "forge-std/Vm.sol";
-import {Helper} from "./Helper.t.sol";
+import {LLMOracleRegistry} from "@firstbatch/dria-oracle-contracts/LLMOracleRegistry.sol";
+import {
+    LLMOracleCoordinator, LLMOracleTaskParameters
+} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {console} from "forge-std/Test.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 contract SwanTest is Helper {
-    modifier deployment() {
-        token = new WETH9();
-
-        // deploy llm contracts
-        vm.startPrank(dria);
-
-        address registryProxy = Upgrades.deployUUPSProxy(
-            "LLMOracleRegistry.sol",
-            abi.encodeCall(
-                LLMOracleRegistry.initialize, (stakes.generatorStakeAmount, stakes.validatorStakeAmount, address(token))
-            )
-        );
-        oracleRegistry = LLMOracleRegistry(registryProxy);
-
-        address coordinatorProxy = Upgrades.deployUUPSProxy(
-            "LLMOracleCoordinator.sol",
-            abi.encodeCall(
-                LLMOracleCoordinator.initialize,
-                (address(oracleRegistry), address(token), fees.platformFee, fees.generationFee, fees.validationFee)
-            )
-        );
-        oracleCoordinator = LLMOracleCoordinator(coordinatorProxy);
-
-        // deploy factory contracts
-        buyerAgentFactory = new BuyerAgentFactory();
-        swanAssetFactory = new SwanAssetFactory();
-
-        // deploy swan
-        address swanProxy = Upgrades.deployUUPSProxy(
-            "Swan.sol",
-            abi.encodeCall(
-                Swan.initialize,
-                (
-                    marketParameters,
-                    oracleParameters,
-                    address(oracleCoordinator),
-                    address(token),
-                    address(buyerAgentFactory),
-                    address(swanAssetFactory)
-                )
-            )
-        );
-        swan = Swan(swanProxy);
-        vm.stopPrank();
-
-        vm.label(address(swan), "Swan");
-        vm.label(address(token), "WETH");
-        vm.label(address(this), "SwanTest");
-        vm.label(address(oracleRegistry), "LLMOracleRegistry");
-        vm.label(address(oracleCoordinator), "LLMOracleCoordinator");
-        vm.label(address(buyerAgentFactory), "BuyerAgentFactory");
-        vm.label(address(swanAssetFactory), "SwanAssetFactory");
-        _;
-    }
-
+    /// @dev Fund geerators, validators, sellers, and dria
     modifier fund() {
-        scores = [1 ether];
+        scores = [10, 15];
 
         // fund dria
         deal(address(token), dria, 1 ether);
@@ -94,21 +44,23 @@ contract SwanTest is Helper {
         _;
     }
 
-    function test_Deployment() external deployment fund {
-        assertEq(oracleCoordinator.platformFee(), fees.platformFee);
-        assertEq(oracleCoordinator.generationFee(), fees.generationFee);
-        assertEq(oracleCoordinator.validationFee(), fees.validationFee);
+    function test_TransferOwnership() external {
+        address newOwner = address(0);
 
-        assertEq(oracleRegistry.generatorStakeAmount(), stakes.generatorStakeAmount);
-        assertEq(oracleRegistry.validatorStakeAmount(), stakes.validatorStakeAmount);
-        assertEq(swan.owner(), dria);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableInvalidOwner.selector, newOwner));
+        vm.startPrank(dria);
+        swan.transferOwnership(newOwner);
+
+        newOwner = address(0x123);
+        swan.transferOwnership(newOwner);
+        assertEq(swan.owner(), newOwner);
     }
 
-    function test_CreateBuyerAgents() external deployment createBuyers fund {
+    function test_CreateBuyerAgents() external createBuyers fund {
         assertEq(buyerAgents.length, buyerAgentOwners.length);
 
         for (uint256 i = 0; i < buyerAgents.length; i++) {
-            assertEq(buyerAgents[i].royaltyFee(), buyerAgentParameters[i].royaltyFee);
+            assertEq(buyerAgents[i].feeRoyalty(), buyerAgentParameters[i].feeRoyalty);
             assertEq(buyerAgents[i].owner(), buyerAgentOwners[i]);
             assertEq(buyerAgents[i].amountPerRound(), buyerAgentParameters[i].amountPerRound);
             assertEq(buyerAgents[i].name(), buyerAgentParameters[i].name);
@@ -119,10 +71,10 @@ contract SwanTest is Helper {
     /// @notice Sellers cannot list more than maxAssetCount
     function test_RevertWhen_ListMoreThanMaxAssetCount()
         external
-        deployment
         fund
         createBuyers
         sellersApproveToSwan
+        addValidatorsToWhitelist
         registerOracles
         listAssets(sellers[0], marketParameters.maxAssetCount, address(buyerAgents[0]))
     {
@@ -135,10 +87,10 @@ contract SwanTest is Helper {
     /// @notice Buyer cannot call purchase() in sell phase
     function test_RevertWhen_PurchaseInSellPhase()
         external
-        deployment
         fund
         createBuyers
         sellersApproveToSwan
+        addValidatorsToWhitelist
         registerOracles
         listAssets(sellers[0], marketParameters.maxAssetCount, address(buyerAgents[0]))
     {
@@ -153,17 +105,17 @@ contract SwanTest is Helper {
     /// @notice Seller cannot relist the asset in the same round (for same or different buyers)
     function test_RevertWhen_RelistInTheSameRound()
         external
-        deployment
         fund
         createBuyers
         sellersApproveToSwan
+        addValidatorsToWhitelist
         registerOracles
         listAssets(sellers[0], marketParameters.maxAssetCount, address(buyerAgents[0]))
     {
         // get the listed asset
         address assetToFail = swan.getListedAssets(address(buyerAgents[0]), currRound)[0];
 
-        vm.prank(SwanAsset(assetToFail).owner());
+        vm.prank(sellers[0]);
         vm.expectRevert(abi.encodeWithSelector(Swan.RoundNotFinished.selector, assetToFail, currRound));
         swan.relist(assetToFail, address(buyerAgents[1]), 0.001 ether);
     }
@@ -171,17 +123,17 @@ contract SwanTest is Helper {
     /// @notice Buyer cannot purchase an asset that is not listed for him
     function test_RevertWhen_PurchaseByAnotherBuyer()
         external
-        deployment
         fund
         createBuyers
         sellersApproveToSwan
+        addValidatorsToWhitelist
         registerOracles
         listAssets(sellers[0], marketParameters.maxAssetCount, address(buyerAgents[0]))
     {
         address buyerToFail = buyerAgentOwners[0];
         BuyerAgent buyerAgent = buyerAgents[1];
 
-        vm.warp(buyerAgents[0].createdAt() + marketParameters.sellInterval);
+        increaseTime(buyerAgent.createdAt() + marketParameters.sellInterval, buyerAgent, BuyerAgent.Phase.Buy, 0);
         currPhase = BuyerAgent.Phase.Buy;
 
         vm.expectRevert(abi.encodeWithSelector(Swan.Unauthorized.selector, buyerToFail));
@@ -192,18 +144,19 @@ contract SwanTest is Helper {
     /// @notice Buyer cannot spend more than amountPerRound per round
     function test_RevertWhen_PurchaseMoreThanAmountPerRound()
         external
-        deployment
         fund
         createBuyers
         sellersApproveToSwan
+        addValidatorsToWhitelist
         registerOracles
         listAssets(sellers[0], marketParameters.maxAssetCount, address(buyerAgents[0]))
     {
         address buyerToFail = buyerAgentOwners[0];
         BuyerAgent buyerAgentToFail = buyerAgents[0];
 
-        vm.warp(buyerAgentToFail.createdAt() + marketParameters.sellInterval);
-        currPhase = BuyerAgent.Phase.Buy;
+        increaseTime(
+            buyerAgentToFail.createdAt() + marketParameters.sellInterval, buyerAgentToFail, BuyerAgent.Phase.Buy, 0
+        );
 
         // get the listed assets as output
         address[] memory output = swan.getListedAssets(address(buyerAgentToFail), currRound);
@@ -215,6 +168,7 @@ contract SwanTest is Helper {
 
         // respond
         safeRespond(generators[0], encodedOutput, 1);
+        safeRespond(generators[1], encodedOutput, 1);
 
         // validate
         safeValidate(validators[0], 1);
@@ -231,45 +185,50 @@ contract SwanTest is Helper {
     /// @dev asset price must be less than amountPerRound
     function test_PurchaseAnAsset()
         external
-        deployment
         fund
         createBuyers
         sellersApproveToSwan
+        addValidatorsToWhitelist
         registerOracles
         listAssets(sellers[0], marketParameters.maxAssetCount, address(buyerAgents[0]))
     {
         // increase time to buy phase to be able to purchase
-        vm.warp(buyerAgents[0].createdAt() + marketParameters.sellInterval);
-        safePurchase(buyerAgentOwners[0], buyerAgents[0], 1);
+        increaseTime(
+            buyerAgents[0].createdAt() + marketParameters.sellInterval, buyerAgents[0], BuyerAgent.Phase.Buy, 0
+        );
 
-        // 1. Transfer (from Swan)
-        // 2. Transfer (from Swan)
-        // 3. Transfer (from WETH9)
-        // 4. Transfer (from WETH9)
-        // 5. AssetSold
+        safePurchase(buyerAgentOwners[0], buyerAgents[0], 1);
         Vm.Log[] memory entries = vm.getRecordedLogs();
-        assertEq(entries.length, 5);
+
+        // 1. Transfer
+        // 2. Transfer
+        // 3. Transfer
+        // 4. Transfer
+        // 5. AssetSold (from Swan)
+        // 6. Purchase (from BuyerAgent)
+        assertEq(entries.length, 6);
 
         // get the AssetSold event
-        Vm.Log memory assetSoldEvent = entries[entries.length - 1];
+        Vm.Log memory assetSoldEvent = entries[entries.length - 2];
 
         // check event sig
         bytes32 eventSig = assetSoldEvent.topics[0];
         assertEq(keccak256("AssetSold(address,address,address,uint256)"), eventSig);
 
         // decode params from event
-        address seller = abi.decode(abi.encode(assetSoldEvent.topics[1]), (address));
-        address agent = abi.decode(abi.encode(assetSoldEvent.topics[2]), (address));
+        address _seller = abi.decode(abi.encode(assetSoldEvent.topics[1]), (address));
+        address _agent = abi.decode(abi.encode(assetSoldEvent.topics[2]), (address));
         address asset = abi.decode(abi.encode(assetSoldEvent.topics[3]), (address));
         uint256 price = abi.decode(assetSoldEvent.data, (uint256));
 
-        assertEq(agent, address(buyerAgents[0]));
+        assertEq(_agent, address(buyerAgents[0]));
         assertEq(asset, buyerAgents[0].inventory(0, 0));
 
         // get asset details
         Swan.AssetListing memory assetListing = swan.getListing(asset);
 
-        assertEq(assetListing.seller, seller);
+        assertEq(assetListing.seller, _seller);
+        assertEq(sellers[0], _seller);
         assertEq(assetListing.buyer, address(buyerAgents[0]));
 
         assertEq(uint8(assetListing.status), uint8(Swan.AssetStatus.Sold));
@@ -279,33 +238,37 @@ contract SwanTest is Helper {
         assertEq(assetSoldEvent.emitter, address(swan));
     }
 
-    /// @notice Buyer can update his state after purchase
     function test_UpdateState()
         external
-        deployment
         fund
         createBuyers
         sellersApproveToSwan
+        addValidatorsToWhitelist
         registerOracles
         listAssets(sellers[0], marketParameters.maxAssetCount, address(buyerAgents[0]))
     {
         address buyerAgentOwner = buyerAgentOwners[0];
         BuyerAgent buyerAgent = buyerAgents[0];
-        uint256 taskId = 1;
-
-        vm.warp(buyerAgent.createdAt() + marketParameters.sellInterval);
-        currPhase = BuyerAgent.Phase.Buy;
-
-        safePurchase(buyerAgentOwners[0], buyerAgents[0], taskId);
-        vm.warp(buyerAgents[0].createdAt() + marketParameters.sellInterval + marketParameters.buyInterval);
-        taskId++;
 
         bytes memory newState = abi.encodePacked("0x", "after purchase");
+        uint256 taskId = 1;
 
+        increaseTime(buyerAgent.createdAt() + marketParameters.sellInterval, buyerAgent, BuyerAgent.Phase.Buy, 0);
+        safePurchase(buyerAgentOwner, buyerAgent, taskId);
+        taskId++;
+
+        increaseTime(
+            buyerAgent.createdAt() + marketParameters.sellInterval + marketParameters.buyInterval,
+            buyerAgent,
+            BuyerAgent.Phase.Withdraw,
+            0
+        );
         vm.prank(buyerAgentOwner);
-        buyerAgents[0].oracleStateRequest(input, models);
+        buyerAgent.oracleStateRequest(input, models);
 
         safeRespond(generators[0], newState, taskId);
+        safeRespond(generators[1], newState, taskId);
+
         safeValidate(validators[0], taskId);
 
         vm.prank(buyerAgentOwner);
@@ -314,29 +277,42 @@ contract SwanTest is Helper {
     }
 
     /// @notice Seller cannot list an asset in withdraw phase
-    function test_RevertWhen_ListInWithdrawPhase() external deployment fund createBuyers sellersApproveToSwan {
-        vm.warp(buyerAgents[0].createdAt() + marketParameters.sellInterval + marketParameters.buyInterval);
+    function test_RevertWhen_ListInWithdrawPhase() external fund createBuyers sellersApproveToSwan {
+        BuyerAgent agent = buyerAgents[0];
+
+        increaseTime(
+            agent.createdAt() + marketParameters.sellInterval + marketParameters.buyInterval,
+            agent,
+            BuyerAgent.Phase.Withdraw,
+            0
+        );
         currPhase = BuyerAgent.Phase.Withdraw;
 
         vm.prank(sellers[0]);
         vm.expectRevert(abi.encodeWithSelector(BuyerAgent.InvalidPhase.selector, currPhase, BuyerAgent.Phase.Sell));
-        swan.list("name", "symbol", "desc", 0.01 ether, address(buyerAgents[0]));
+        swan.list("name", "symbol", "desc", 0.01 ether, address(agent));
     }
 
     /// @notice Buyer Agent Owner can setAmountPerRound in withdraw phase
-    function test_SetAmountPerRound() external deployment fund createBuyers sellersApproveToSwan {
-        vm.warp(buyerAgents[0].createdAt() + marketParameters.sellInterval + marketParameters.buyInterval);
-
+    function test_SetAmountPerRound() external fund createBuyers sellersApproveToSwan {
+        BuyerAgent agent = buyerAgents[0];
         uint256 newAmountPerRound = 2 ether;
 
+        increaseTime(
+            agent.createdAt() + marketParameters.sellInterval + marketParameters.buyInterval,
+            agent,
+            BuyerAgent.Phase.Withdraw,
+            0
+        );
+
         vm.prank(buyerAgentOwners[0]);
-        buyerAgents[0].setAmountPerRound(newAmountPerRound);
-        assertEq(buyerAgents[0].amountPerRound(), newAmountPerRound);
+        agent.setAmountPerRound(newAmountPerRound);
+        assertEq(agent.amountPerRound(), newAmountPerRound);
     }
 
     /// @notice Buyer Agent Owner cannot create buyer agent with invalid royalty
     /// @dev feeRoyalty must be between 0 - 100
-    function test_RevertWhen_CreateBuyerWithInvalidRoyalty() external deployment fund {
+    function test_RevertWhen_CreateBuyerWithInvalidRoyalty() external fund {
         uint96 invalidRoyalty = 150;
 
         vm.prank(buyerAgentOwners[0]);
@@ -350,7 +326,7 @@ contract SwanTest is Helper {
     }
 
     /// @notice Swan owner can set factories
-    function test_SetFactories() external deployment fund {
+    function test_SetFactories() external fund {
         SwanAssetFactory _swanAssetFactory = new SwanAssetFactory();
         BuyerAgentFactory _buyerAgentFactory = new BuyerAgentFactory();
 
@@ -364,10 +340,10 @@ contract SwanTest is Helper {
     /// @notice Seller cannot relist an asset that is already purchased
     function test_RevertWhen_RelistAlreadyPurchasedAsset()
         external
-        deployment
         fund
         createBuyers
         sellersApproveToSwan
+        addValidatorsToWhitelist
         registerOracles
         listAssets(sellers[0], marketParameters.maxAssetCount, address(buyerAgents[0]))
     {
@@ -376,12 +352,12 @@ contract SwanTest is Helper {
         uint256 taskId = 1;
 
         // increase time to buy phase
-        vm.warp(buyerAgent.createdAt() + marketParameters.sellInterval);
-
+        increaseTime(buyerAgent.createdAt() + marketParameters.sellInterval, buyerAgent, BuyerAgent.Phase.Buy, 0);
         safePurchase(buyer, buyerAgent, taskId);
 
-        // increase time to the sell phase of the next round
-        vm.warp(buyerAgent.createdAt() + marketParameters.buyInterval + marketParameters.withdrawInterval);
+        uint256 sellPhaseOfTheSecondRound = buyerAgent.createdAt() + marketParameters.sellInterval
+            + marketParameters.buyInterval + marketParameters.withdrawInterval;
+        increaseTime(sellPhaseOfTheSecondRound, buyerAgent, BuyerAgent.Phase.Sell, 1);
 
         // get the asset
         address listedAssetAddr = swan.getListedAssets(address(buyerAgent), currRound)[0];
@@ -398,21 +374,20 @@ contract SwanTest is Helper {
     /// @notice Seller cannot relist another seller's asset
     function test_RevertWhen_RelistByAnotherSeller()
         external
-        deployment
         fund
         createBuyers
         sellersApproveToSwan
+        addValidatorsToWhitelist
         registerOracles
         listAssets(sellers[0], marketParameters.maxAssetCount, address(buyerAgents[0]))
     {
         BuyerAgent buyerAgent = buyerAgents[0];
         address listedAssetAddr = swan.getListedAssets(address(buyerAgent), currRound)[0];
 
-        // increase time to the sell phase of the next round
-        vm.warp(
-            buyerAgent.createdAt() + marketParameters.sellInterval + marketParameters.buyInterval
-                + marketParameters.withdrawInterval
-        );
+        // increase time to the sell phase of thze next round
+        uint256 sellPhaseOfTheSecondRound = buyerAgent.createdAt() + marketParameters.sellInterval
+            + marketParameters.buyInterval + marketParameters.withdrawInterval;
+        increaseTime(sellPhaseOfTheSecondRound, buyerAgent, BuyerAgent.Phase.Sell, 1);
 
         // try to relist an asset by another seller
         vm.prank(sellers[1]);
@@ -424,10 +399,10 @@ contract SwanTest is Helper {
     /// @dev Buyer Agent must be in Sell Phase
     function test_RelistAsset()
         external
-        deployment
         fund
         createBuyers
         sellersApproveToSwan
+        addValidatorsToWhitelist
         registerOracles
         listAssets(sellers[0], marketParameters.maxAssetCount, address(buyerAgents[0]))
     {
@@ -437,10 +412,13 @@ contract SwanTest is Helper {
         address listedAssetAddr = swan.getListedAssets(address(buyerAgent), currRound)[0];
 
         // increase time to the sell phase of the next round
-        vm.warp(
-            buyerAgent.createdAt() + marketParameters.sellInterval + marketParameters.buyInterval
-                + marketParameters.withdrawInterval
-        );
+        uint256 sellPhaseOfTheSecondRound = buyerAgent.createdAt() + marketParameters.sellInterval
+            + marketParameters.buyInterval + marketParameters.withdrawInterval;
+        increaseTime(sellPhaseOfTheSecondRound, buyerAgent, BuyerAgent.Phase.Sell, 1);
+
+        vm.prank(sellers[0]);
+        vm.expectRevert(abi.encodeWithSelector(Swan.InvalidPrice.selector, 0));
+        swan.relist(listedAssetAddr, address(buyerAgentToRelist), 0);
 
         // try to relist an asset by another seller
         vm.recordLogs();
@@ -475,57 +453,65 @@ contract SwanTest is Helper {
     /// @notice Seller cannot relist an asset in Buy Phase
     function test_RevertWhen_RelistInBuyPhase()
         external
-        deployment
         fund
         createBuyers
         sellersApproveToSwan
+        addValidatorsToWhitelist
         registerOracles
         listAssets(sellers[0], marketParameters.maxAssetCount, address(buyerAgents[0]))
     {
         BuyerAgent buyerAgent = buyerAgents[0];
         address listedAssetAddr = swan.getListedAssets(address(buyerAgent), currRound)[0];
 
-        uint256 cycleTime =
-            marketParameters.buyInterval + marketParameters.sellInterval + marketParameters.withdrawInterval;
+        // increase time to the buy phase of the second round
+        uint256 buyPhaseOfTheSecondRound = buyerAgent.createdAt() + marketParameters.sellInterval
+            + marketParameters.buyInterval + marketParameters.withdrawInterval + marketParameters.sellInterval;
 
-        vm.warp(buyerAgent.createdAt() + cycleTime + marketParameters.sellInterval);
+        increaseTime(buyPhaseOfTheSecondRound, buyerAgent, BuyerAgent.Phase.Buy, 1);
         currPhase = BuyerAgent.Phase.Buy;
 
         // try to relist
-        vm.prank(sellers[0]);
         vm.expectRevert(abi.encodeWithSelector(BuyerAgent.InvalidPhase.selector, currPhase, BuyerAgent.Phase.Sell));
-        swan.relist(listedAssetAddr, address(buyerAgent), 0.1 ether);
+        vm.prank(sellers[0]);
+        swan.relist(listedAssetAddr, address(buyerAgent), assetPrice);
     }
 
     ///  @notice Seller cannot relist an asset in Withdraw Phase
     function test_RevertWhen_RelistInWithdrawPhase()
         external
-        deployment
         fund
         createBuyers
         sellersApproveToSwan
+        addValidatorsToWhitelist
         registerOracles
         listAssets(sellers[0], marketParameters.maxAssetCount, address(buyerAgents[0]))
     {
         BuyerAgent buyerAgent = buyerAgents[0];
         address listedAssetAddr = swan.getListedAssets(address(buyerAgent), currRound)[0];
 
-        uint256 cycleTime =
-            marketParameters.buyInterval + marketParameters.sellInterval + marketParameters.withdrawInterval;
+        // increase time to the withdraw phase of the second round
+        uint256 withdrawPhaseOfSecondRound = (2 * marketParameters.sellInterval) + (2 * marketParameters.buyInterval)
+            + marketParameters.withdrawInterval + buyerAgent.createdAt();
 
-        vm.warp(buyerAgent.createdAt() + cycleTime + marketParameters.sellInterval + marketParameters.buyInterval);
+        increaseTime(withdrawPhaseOfSecondRound, buyerAgent, BuyerAgent.Phase.Withdraw, 1);
         currPhase = BuyerAgent.Phase.Withdraw;
 
         // try to relist
-        vm.prank(sellers[0]);
         vm.expectRevert(abi.encodeWithSelector(BuyerAgent.InvalidPhase.selector, currPhase, BuyerAgent.Phase.Sell));
-        swan.relist(listedAssetAddr, address(buyerAgent), 0.1 ether);
+        vm.prank(sellers[0]);
+        swan.relist(listedAssetAddr, address(buyerAgent), assetPrice);
     }
 
     /// @notice Swan owner can set market parameters
     /// @dev Only Swan owner can set market parameters
-    function test_SetMarketParameters() external deployment fund createBuyers {
-        vm.warp(buyerAgents[0].createdAt() + marketParameters.buyInterval + marketParameters.sellInterval);
+    function test_SetMarketParameters() external fund createBuyers {
+        // increase time to the withdraw phase
+        increaseTime(
+            buyerAgents[0].createdAt() + marketParameters.sellInterval + marketParameters.buyInterval,
+            buyerAgents[0],
+            BuyerAgent.Phase.Withdraw,
+            0
+        );
 
         SwanMarketParameters memory newMarketParameters = SwanMarketParameters({
             withdrawInterval: 10 * 60,
@@ -534,7 +520,8 @@ contract SwanTest is Helper {
             platformFee: 12,
             maxAssetCount: 100,
             timestamp: block.timestamp,
-            minAssetPrice: 0.00001 ether
+            minAssetPrice: 0.00001 ether,
+            maxBuyerAgentFee: 75
         });
 
         vm.prank(dria);
@@ -551,8 +538,14 @@ contract SwanTest is Helper {
 
     /// @notice Swan owner can set oracle parameters
     /// @dev Only Swan owner can set oracle parameters
-    function test_SetOracleParameters() external deployment fund createBuyers {
-        vm.warp(buyerAgents[0].createdAt() + marketParameters.buyInterval + marketParameters.sellInterval);
+    function test_SetOracleParameters() external fund createBuyers {
+        // increase time to the withdraw phase
+        increaseTime(
+            buyerAgents[0].createdAt() + marketParameters.sellInterval + marketParameters.buyInterval,
+            buyerAgents[0],
+            BuyerAgent.Phase.Withdraw,
+            0
+        );
 
         LLMOracleTaskParameters memory newOracleParameters =
             LLMOracleTaskParameters({difficulty: 5, numGenerations: 3, numValidations: 4});

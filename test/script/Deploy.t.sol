@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {Deploy} from "../script/Deploy.s.sol";
-import {HelperConfig} from "../script/HelperConfig.s.sol";
+import {Deploy} from "../../script/Deploy.s.sol";
+import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {Test} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {LLMOracleRegistry} from "@firstbatch/dria-oracle-contracts/LLMOracleRegistry.sol";
 import {LLMOracleCoordinator} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
-import {Swan} from "../src/Swan.sol";
+import {Swan} from "../../src/Swan.sol";
 
 pragma solidity ^0.8.20;
 

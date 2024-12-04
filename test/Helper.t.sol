@@ -1,35 +1,28 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.20;
 
-import {Vm} from "forge-std/Vm.sol";
 import {Upgrades} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
+import {Vm} from "forge-std/Vm.sol";
+import {Test} from "forge-std/Test.sol";
+
 import {WETH9} from "./WETH9.sol";
 import {LLMOracleRegistry, LLMOracleKind} from "@firstbatch/dria-oracle-contracts/LLMOracleRegistry.sol";
 import {LLMOracleCoordinator} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
-import {Test, console} from "forge-std/Test.sol";
 import {SwanMarketParameters} from "../src/SwanManager.sol";
 import {LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOracleTask.sol";
+import {BuyerAgent, BuyerAgentFactory} from "../src/BuyerAgent.sol";
+import {SwanAssetFactory} from "../src/SwanAsset.sol";
 import {BuyerAgent} from "../src/BuyerAgent.sol";
 import {Swan} from "../src/Swan.sol";
-import {BuyerAgent, BuyerAgentFactory} from "../src/BuyerAgent.sol";
-import {SwanAssetFactory, SwanAsset} from "../src/SwanAsset.sol";
+import {Stakes, Fees} from "../script/HelperConfig.s.sol";
 
+// CREATED TO PREVENT CODE DUPLICATION IN TESTS
 abstract contract Helper is Test {
-    struct Stakes {
-        uint256 generatorStakeAmount;
-        uint256 validatorStakeAmount;
-    }
-
-    struct Fees {
-        uint256 platformFee;
-        uint256 generationFee;
-        uint256 validationFee;
-    }
-
+    /// @dev Parameters for the buyer agent deployment
     struct BuyerAgentParameters {
         string name;
         string description;
-        uint96 royaltyFee;
+        uint96 feeRoyalty;
         uint256 amountPerRound;
     }
 
@@ -58,6 +51,9 @@ abstract contract Helper is Test {
     SwanAssetFactory swanAssetFactory;
     BuyerAgent[] buyerAgents;
 
+    BuyerAgent agent;
+    address agentOwner;
+
     WETH9 token;
     Swan swan;
 
@@ -67,21 +63,27 @@ abstract contract Helper is Test {
 
     uint256 assetPrice = 0.01 ether;
     uint256 amountPerRound = 0.015 ether;
-    uint96 royaltyFee = 2;
+    uint8 feeRoyalty = 2;
 
-    uint256[] scores = [1 ether, 1 ether, 1 ether];
+    /// @dev Default scores for validation
+    uint256[] scores = [1, 5, 70];
+
+    uint256 public minRegistrationTime = 1 days; // in seconds
+    uint256 public minScore = 1;
+    uint256 public maxScore = type(uint8).max; // 255
 
     /// @notice The given nonce is not a valid proof-of-work.
     error InvalidNonceFromHelperTest(uint256 taskId, uint256 nonce, uint256 computedNonce, address caller);
 
-    function setUp() public {
+    // @dev Set parameters for the test
+    function setUp() public deployment {
         dria = vm.addr(1);
         validators = [vm.addr(2), vm.addr(3), vm.addr(4)];
         generators = [vm.addr(5), vm.addr(6), vm.addr(7)];
         buyerAgentOwners = [vm.addr(8), vm.addr(9)];
         sellers = [vm.addr(10), vm.addr(11)];
 
-        oracleParameters = LLMOracleTaskParameters({difficulty: 1, numGenerations: 1, numValidations: 1});
+        oracleParameters = LLMOracleTaskParameters({difficulty: 1, numGenerations: 2, numValidations: 1});
         marketParameters = SwanMarketParameters({
             withdrawInterval: 300, // 5 minutes
             sellInterval: 360,
@@ -89,18 +91,19 @@ abstract contract Helper is Test {
             platformFee: 2, // percentage
             maxAssetCount: 3,
             timestamp: block.timestamp,
-            minAssetPrice: 0.00001 ether
+            minAssetPrice: 0.00001 ether,
+            maxBuyerAgentFee: 75 // percentage
         });
 
         stakes = Stakes({generatorStakeAmount: 0.01 ether, validatorStakeAmount: 0.01 ether});
-        fees = Fees({platformFee: 0.0001 ether, generationFee: 0.0002 ether, validationFee: 0.00003 ether});
+        fees = Fees({platformFee: 1, generationFee: 0.0002 ether, validationFee: 0.00003 ether});
 
         for (uint96 i = 0; i < buyerAgentOwners.length; i++) {
             buyerAgentParameters.push(
                 BuyerAgentParameters({
                     name: string.concat("BuyerAgent", vm.toString(uint256(i))),
                     description: "description of the buyer agent",
-                    royaltyFee: royaltyFee,
+                    feeRoyalty: feeRoyalty,
                     amountPerRound: amountPerRound
                 })
             );
@@ -108,15 +111,96 @@ abstract contract Helper is Test {
             vm.label(buyerAgentOwners[i], string.concat("BuyerAgentOwner#", vm.toString(i + 1)));
         }
         vm.label(dria, "Dria");
+        vm.label(address(this), "Helper");
     }
 
+    /*//////////////////////////////////////////////////////////////
+                             MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+
+    modifier deployment() {
+        _;
+
+        token = new WETH9();
+
+        // deploy llm contracts
+        vm.startPrank(dria);
+
+        address registryProxy = Upgrades.deployUUPSProxy(
+            "LLMOracleRegistry.sol",
+            abi.encodeCall(
+                LLMOracleRegistry.initialize,
+                (stakes.generatorStakeAmount, stakes.validatorStakeAmount, address(token), minRegistrationTime)
+            )
+        );
+        oracleRegistry = LLMOracleRegistry(registryProxy);
+
+        address coordinatorProxy = Upgrades.deployUUPSProxy(
+            "LLMOracleCoordinator.sol",
+            abi.encodeCall(
+                LLMOracleCoordinator.initialize,
+                (
+                    address(oracleRegistry),
+                    address(token),
+                    fees.platformFee,
+                    fees.generationFee,
+                    fees.validationFee,
+                    minScore,
+                    maxScore
+                )
+            )
+        );
+        oracleCoordinator = LLMOracleCoordinator(coordinatorProxy);
+
+        // deploy factory contracts
+        buyerAgentFactory = new BuyerAgentFactory();
+        swanAssetFactory = new SwanAssetFactory();
+
+        // deploy swan
+        address swanProxy = Upgrades.deployUUPSProxy(
+            "Swan.sol",
+            abi.encodeCall(
+                Swan.initialize,
+                (
+                    marketParameters,
+                    oracleParameters,
+                    address(oracleCoordinator),
+                    address(token),
+                    address(buyerAgentFactory),
+                    address(swanAssetFactory)
+                )
+            )
+        );
+        swan = Swan(swanProxy);
+        vm.stopPrank();
+
+        vm.label(address(swan), "Swan");
+        vm.label(address(token), "WETH");
+        vm.label(address(oracleRegistry), "LLMOracleRegistry");
+        vm.label(address(oracleCoordinator), "LLMOracleCoordinator");
+        vm.label(address(buyerAgentFactory), "BuyerAgentFactory");
+        vm.label(address(swanAssetFactory), "SwanAssetFactory");
+    }
+
+    /// @notice Add validators to the whitelist.
+    modifier addValidatorsToWhitelist() {
+        vm.prank(dria);
+        oracleRegistry.addToWhitelist(validators);
+
+        for (uint256 i; i < validators.length; i++) {
+            vm.assertTrue(oracleRegistry.whitelisted(validators[i]));
+        }
+        _;
+    }
+
+    /// @notice Register generators and validators
     modifier registerOracles() {
         for (uint256 i = 0; i < generators.length; i++) {
-            // Approve the stake for the generator
+            // approve the stake for the generator
             vm.startPrank(generators[i]);
             token.approve(address(oracleRegistry), stakes.generatorStakeAmount + stakes.validatorStakeAmount);
 
-            // Register the generator oracle
+            // register the generator oracle
             oracleRegistry.register(LLMOracleKind.Generator);
             vm.stopPrank();
 
@@ -125,11 +209,11 @@ abstract contract Helper is Test {
         }
 
         for (uint256 i = 0; i < validators.length; i++) {
-            // Approve the stake for the validator
+            // approve the stake for the validator
             vm.startPrank(validators[i]);
             token.approve(address(oracleRegistry), stakes.validatorStakeAmount);
 
-            // Register the validator oracle
+            // register the validator oracle
             oracleRegistry.register(LLMOracleKind.Validator);
             vm.stopPrank();
 
@@ -139,6 +223,7 @@ abstract contract Helper is Test {
         _;
     }
 
+    /// @notice Create buyers by using buyerAgentOwners and buyerAgentParameters
     modifier createBuyers() virtual {
         for (uint256 i = 0; i < buyerAgentOwners.length; i++) {
             // fund buyer agent owner
@@ -151,7 +236,7 @@ abstract contract Helper is Test {
             BuyerAgent buyerAgent = swan.createBuyer(
                 buyerAgentParameters[i].name,
                 buyerAgentParameters[i].description,
-                buyerAgentParameters[i].royaltyFee,
+                buyerAgentParameters[i].feeRoyalty,
                 buyerAgentParameters[i].amountPerRound
             );
 
@@ -186,14 +271,15 @@ abstract contract Helper is Test {
             assertEq(keccak256("BuyerCreated(address,address)"), eventSig);
 
             // decode owner & agent address from topics
-            address owner = abi.decode(abi.encode(buyerCreatedEvent.topics[1]), (address));
-            address agent = abi.decode(abi.encode(buyerCreatedEvent.topics[2]), (address));
+            address _owner = abi.decode(abi.encode(buyerCreatedEvent.topics[1]), (address));
+            address _agent = abi.decode(abi.encode(buyerCreatedEvent.topics[2]), (address));
 
+            assertEq(_owner, buyerAgentOwners[i]);
             // emitter should be swan
             assertEq(buyerCreatedEvent.emitter, address(swan));
 
             // all guuud
-            buyerAgents.push(BuyerAgent(agent));
+            buyerAgents.push(BuyerAgent(_agent));
 
             vm.label(address(buyerAgents[i]), string.concat("BuyerAgent#", vm.toString(i + 1)));
 
@@ -205,21 +291,37 @@ abstract contract Helper is Test {
 
         assertEq(buyerAgents.length, buyerAgentOwners.length);
         currPhase = BuyerAgent.Phase.Sell;
+
+        agent = buyerAgents[0];
+        agentOwner = buyerAgentOwners[0];
         _;
     }
 
+    /// @notice Sellers approve swan
     modifier sellersApproveToSwan() {
         for (uint256 i = 0; i < sellers.length; i++) {
             vm.prank(sellers[i]);
             token.approve(address(swan), 1 ether);
             assertEq(token.allowance(sellers[i], address(swan)), 1 ether);
+            vm.label(sellers[i], string.concat("Seller#", vm.toString(i + 1)));
         }
         _;
     }
 
+    /// @notice Listing assets with the given params.
+    /// @param seller Seller of the asset.
+    /// @param assetCount Number of assets that will be listed.
+    /// @param buyerAgent Agent that assets will be list for.
     modifier listAssets(address seller, uint256 assetCount, address buyerAgent) {
+        uint256 invalidPrice = BuyerAgent(buyerAgent).amountPerRound();
+
+        vm.expectRevert(abi.encodeWithSelector(Swan.InvalidPrice.selector, invalidPrice));
+        vm.prank(seller);
+        swan.list("SwanAsset", "SA", "description or the swan asset", invalidPrice, buyerAgent);
+
+        vm.recordLogs();
+        vm.startPrank(seller);
         for (uint256 i = 0; i < assetCount; i++) {
-            vm.prank(seller);
             swan.list(
                 string.concat("SwanAsset#", vm.toString(i)),
                 string.concat("SA#", vm.toString(i)),
@@ -227,14 +329,56 @@ abstract contract Helper is Test {
                 assetPrice,
                 buyerAgent
             );
-        }
 
-        // get listed assets
+            // From SwanAsset' constructor
+            // 1. OwnershipTransferred (from Ownable)
+            // 2. Transfer (_safeMint() related)
+            // 3. ApprovalForAll
+
+            // From transferRoyalties()
+            // 4. Transfer (WETH9: royalty transfer to Swan)
+            // 5. Transfer (WETH9: royalty transfer to buyer agent)
+            // 6. Transfer (WETH9: royalty transfer to dria)
+
+            // From Swan
+            // 7. AssetListed
+            Vm.Log[] memory entries = vm.getRecordedLogs();
+            assertEq(entries.length, 7);
+
+            // get the AssetListed event
+            Vm.Log memory assetListedEvent = entries[entries.length - 1];
+
+            // check event sig
+            bytes32 eventSig = assetListedEvent.topics[0];
+            assertEq(keccak256("AssetListed(address,address,uint256)"), eventSig);
+
+            // decode params from event
+            address _seller = abi.decode(abi.encode(assetListedEvent.topics[1]), (address));
+            address asset = abi.decode(abi.encode(assetListedEvent.topics[2]), (address));
+            uint256 price = abi.decode(assetListedEvent.data, (uint256));
+
+            // get asset details
+            Swan.AssetListing memory assetListing = swan.getListing(asset);
+
+            assertEq(assetListing.seller, _seller);
+            assertEq(seller, _seller);
+            assertEq(assetListing.buyer, address(buyerAgent));
+
+            assertEq(uint8(assetListing.status), uint8(Swan.AssetStatus.Listed));
+            assertEq(assetListing.price, price);
+
+            // emitter should be swan
+            assertEq(assetListedEvent.emitter, address(swan));
+        }
+        vm.stopPrank();
+
+        // check if assets listed
         address[] memory listedAssets = swan.getListedAssets(buyerAgent, currRound);
         assertEq(listedAssets.length, assetCount);
         _;
     }
 
+    /// @dev Sets oracle parameters
     modifier setOracleParameters(uint8 _difficulty, uint40 _numGenerations, uint40 _numValidations) {
         oracleParameters.difficulty = _difficulty;
         oracleParameters.numGenerations = _numGenerations;
@@ -246,46 +390,7 @@ abstract contract Helper is Test {
         _;
     }
 
-    // check generator and validator allowances before and after function execution
-    // used in coordinator test
-    modifier checkAllowances() {
-        uint256[] memory generatorAllowancesBefore = new uint256[](oracleParameters.numGenerations);
-        uint256[] memory validatorAllowancesBefore;
-
-        // get generator allowances before function execution
-        for (uint256 i = 0; i < oracleParameters.numGenerations; i++) {
-            generatorAllowancesBefore[i] = token.allowance(address(oracleCoordinator), generators[i]);
-        }
-
-        // numValidations is greater than 0
-        if (oracleParameters.numValidations > 0) {
-            validatorAllowancesBefore = new uint256[](oracleParameters.numValidations);
-            for (uint256 i = 0; i < oracleParameters.numValidations; i++) {
-                validatorAllowancesBefore[i] = token.allowance(address(oracleCoordinator), validators[i]);
-            }
-            // execute function
-            _;
-
-            // validator allowances after function execution
-            (,,,,, uint256 valFee,,,) = oracleCoordinator.requests(1);
-            for (uint256 i = 0; i < oracleParameters.numValidations; i++) {
-                uint256 allowanceAfter = token.allowance(address(oracleCoordinator), validators[i]);
-                assertEq(allowanceAfter - validatorAllowancesBefore[i], valFee * oracleParameters.numGenerations);
-            }
-        } else {
-            // if no validations skip validator checks
-            _;
-        }
-
-        // validate generator allowances after function execution
-        for (uint256 i = 0; i < oracleParameters.numGenerations; i++) {
-            uint256 allowanceAfter = token.allowance(address(oracleCoordinator), generators[i]);
-            (,,,, uint256 expectedIncrease,,,,) = oracleCoordinator.requests(1);
-            assertEq(allowanceAfter - generatorAllowancesBefore[i], expectedIncrease);
-        }
-    }
-
-    // Mines a valid nonce until the hash meets the difficulty target
+    // @notice Mines a valid nonce until the hash meets the difficulty target.
     function mineNonce(address responder, uint256 taskId) internal view returns (uint256) {
         // get the task
         (address requester,,,,,,,,) = oracleCoordinator.requests(taskId);
@@ -301,6 +406,7 @@ abstract contract Helper is Test {
         }
     }
 
+    /// @notice Makes a request to Oracle Coordinator
     modifier safeRequest(address requester, uint256 taskId) {
         (uint256 _total, uint256 _generator, uint256 _validator) = oracleCoordinator.getFee(oracleParameters);
 
@@ -330,18 +436,45 @@ abstract contract Helper is Test {
         _;
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                 FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Increases time in the test
+    function increaseTime(
+        uint256 timeInseconds,
+        BuyerAgent buyerAgent,
+        BuyerAgent.Phase expectedPhase,
+        uint256 expectedRound
+    ) public {
+        vm.warp(timeInseconds + 1);
+
+        // get the current round and phase of buyer agent
+        (uint256 _currRound, BuyerAgent.Phase _currPhase,) = buyerAgent.getRoundPhase();
+        assertEq(uint8(_currPhase), uint8(expectedPhase));
+        assertEq(uint8(_currRound), uint8(expectedRound));
+    }
+
+    /// @notice Responds to task
+    /// @param responder Responder address
+    /// @param output Output of the task
+    /// @param taskId Task Id
     function safeRespond(address responder, bytes memory output, uint256 taskId) internal {
         uint256 nonce = mineNonce(responder, taskId);
         vm.prank(responder);
         oracleCoordinator.respond(taskId, nonce, output, metadata);
     }
 
+    /// @notice Validates the task
+    /// @param validator Validator address
+    /// @param taskId Task Id
     function safeValidate(address validator, uint256 taskId) internal {
         uint256 nonce = mineNonce(validator, taskId);
         vm.prank(validator);
         oracleCoordinator.validate(taskId, nonce, scores, metadata);
     }
 
+    /// @notice Makes a purchase request to Oracle Coordinator
     function safePurchase(address buyer, BuyerAgent buyerAgent, uint256 taskId) public {
         address[] memory listedAssets = swan.getListedAssets(address(buyerAgent), currRound);
 
@@ -357,11 +490,12 @@ abstract contract Helper is Test {
 
         // respond
         safeRespond(generators[0], encodedOutput, taskId);
+        safeRespond(generators[1], encodedOutput, taskId);
 
         // validate
         safeValidate(validators[0], taskId);
 
-        assert(token.balanceOf(address(buyerAgent)) > assetPrice);
+        assertGe(token.balanceOf(address(buyerAgent)), assetPrice);
 
         // purchase and check event logs
         vm.recordLogs();
@@ -369,6 +503,7 @@ abstract contract Helper is Test {
         buyerAgent.purchase();
     }
 
+    /// @dev Sets market parameters
     function setMarketParameters(SwanMarketParameters memory newMarketParameters) public {
         vm.prank(dria);
         swan.setMarketParameters(newMarketParameters);
@@ -380,13 +515,14 @@ abstract contract Helper is Test {
         assertEq(_newMarketParameters.withdrawInterval, newMarketParameters.withdrawInterval);
     }
 
-    function checkRoundAndPhase(BuyerAgent agent, BuyerAgent.Phase phase, uint256 round)
+    /// @dev Checks if the round, phase and timeRemaining is correct
+    function checkRoundAndPhase(BuyerAgent buyerAgent, BuyerAgent.Phase phase, uint256 round)
         public
         view
         returns (uint256)
     {
         // get the current round and phase of buyer agent
-        (uint256 _currRound, BuyerAgent.Phase _currPhase,) = agent.getRoundPhase();
+        (uint256 _currRound, BuyerAgent.Phase _currPhase,) = buyerAgent.getRoundPhase();
         assertEq(uint8(_currPhase), uint8(phase));
         assertEq(uint8(_currRound), uint8(round));
 

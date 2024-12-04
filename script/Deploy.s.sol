@@ -53,7 +53,10 @@ contract Deploy is Script {
         // deploy llm contracts
         address registryProxy = Upgrades.deployUUPSProxy(
             "LLMOracleRegistry.sol",
-            abi.encodeCall(LLMOracleRegistry.initialize, (genStake, valStake, address(config.token())))
+            abi.encodeCall(
+                LLMOracleRegistry.initialize,
+                (genStake, valStake, address(config.token()), config.minRegistrationTime())
+            )
         );
 
         // wrap proxy with the LLMOracleRegistry
@@ -65,7 +68,15 @@ contract Deploy is Script {
             "LLMOracleCoordinator.sol",
             abi.encodeCall(
                 LLMOracleCoordinator.initialize,
-                (address(oracleRegistry), address(config.token()), platformFee, genFee, valFee)
+                (
+                    address(oracleRegistry),
+                    address(config.token()),
+                    platformFee,
+                    genFee,
+                    valFee,
+                    config.minScore(),
+                    config.maxScore()
+                )
             )
         );
 
@@ -87,6 +98,9 @@ contract Deploy is Script {
             uint256 platformFee,
             uint256 maxAssetCount,
             uint256 minAssetPrice,
+            /* timestamp */
+            ,
+            uint8 maxBuyerAgentFee
         ) = config.marketParams();
 
         // get llm params
@@ -105,7 +119,8 @@ contract Deploy is Script {
                         platformFee,
                         maxAssetCount,
                         minAssetPrice,
-                        block.timestamp
+                        block.timestamp,
+                        maxBuyerAgentFee
                     ),
                     LLMOracleTaskParameters(diff, numGen, numVal),
                     address(oracleCoordinator),
@@ -127,7 +142,7 @@ contract Deploy is Script {
 
         // create dir if it doesn't exist
         vm.createDir(dir, true);
-        
+
         string memory contracts = string.concat(
             "{",
             '  "LLMOracleRegistry": {',
