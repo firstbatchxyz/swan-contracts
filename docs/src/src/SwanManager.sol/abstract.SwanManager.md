@@ -1,5 +1,5 @@
 # SwanManager
-[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/ceefa4b0353ce4c0f1536b7318fa82b208305342/contracts/swan/SwanManager.sol)
+[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/b941dcd71134f5be2e73ec6ee0a8aa50cf333ffb/src/SwanManager.sol)
 
 **Inherits:**
 OwnableUpgradeable
@@ -21,24 +21,6 @@ Oracle parameters such as fees.
 
 ```solidity
 LLMOracleTaskParameters oracleParameters;
-```
-
-
-### buyerAgentFactory
-Factory contract to deploy Buyer Agents.
-
-
-```solidity
-BuyerAgentFactory public buyerAgentFactory;
-```
-
-
-### swanAssetFactory
-Factory contract to deploy SwanAsset tokens.
-
-
-```solidity
-SwanAssetFactory public swanAssetFactory;
 ```
 
 
@@ -83,13 +65,6 @@ oz-upgrades-unsafe-allow: constructor
 
 ```solidity
 constructor();
-```
-
-### __SwanManager_init
-
-
-```solidity
-function __SwanManager_init(address _owner) public onlyInitializing;
 ```
 
 ### getMarketParameters
@@ -154,24 +129,6 @@ Returns the total fee required to make an oracle request.
 ```solidity
 function getOracleFee() external view returns (uint256);
 ```
-
-### setFactories
-
-Set the factories for Buyer Agents and Swan Assets.
-
-*Only callable by owner.*
-
-
-```solidity
-function setFactories(address _buyerAgentFactory, address _swanAssetFactory) external onlyOwner;
-```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`_buyerAgentFactory`|`address`|new BuyerAgentFactory address|
-|`_swanAssetFactory`|`address`|new SwanAssetFactory address|
-
 
 ### addOperator
 

@@ -1,5 +1,5 @@
 # BuyerAgentFactory
-[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/ceefa4b0353ce4c0f1536b7318fa82b208305342/contracts/swan/BuyerAgent.sol)
+[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/b941dcd71134f5be2e73ec6ee0a8aa50cf333ffb/src/BuyerAgent.sol)
 
 Factory contract to deploy BuyerAgent contracts.
 
@@ -14,7 +14,7 @@ Factory contract to deploy BuyerAgent contracts.
 function deploy(
     string memory _name,
     string memory _description,
-    uint96 _royaltyFee,
+    uint96 _feeRoyalty,
     uint256 _amountPerRound,
     address _owner
 ) external returns (BuyerAgent);

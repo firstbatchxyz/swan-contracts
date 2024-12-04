@@ -1,11 +1,29 @@
 # Swan
-[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/ceefa4b0353ce4c0f1536b7318fa82b208305342/contracts/swan/Swan.sol)
+[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/b941dcd71134f5be2e73ec6ee0a8aa50cf333ffb/src/Swan.sol)
 
 **Inherits:**
-[SwanManager](/contracts/swan/SwanManager.sol/abstract.SwanManager.md), UUPSUpgradeable, IERC721Receiver
+[SwanManager](/src/SwanManager.sol/abstract.SwanManager.md), UUPSUpgradeable
 
 
 ## State Variables
+### buyerAgentFactory
+Factory contract to deploy Buyer Agents.
+
+
+```solidity
+BuyerAgentFactory public buyerAgentFactory;
+```
+
+
+### swanAssetFactory
+Factory contract to deploy SwanAsset tokens.
+
+
+```solidity
+SwanAssetFactory public swanAssetFactory;
+```
+
+
 ### listings
 To keep track of the assets for purchase.
 
@@ -37,17 +55,6 @@ oz-upgrades-unsafe-allow: constructor
 
 ```solidity
 constructor();
-```
-
-### onERC721Received
-
-Function to receive ERC721 tokens via safe transfer.
-
-*[See more](https://eips.ethereum.org/EIPS/eip-721).*
-
-
-```solidity
-function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4);
 ```
 
 ### _authorizeUpgrade
@@ -82,6 +89,42 @@ function initialize(
     address _swanAssetFactory
 ) public initializer;
 ```
+
+### transferOwnership
+
+Transfer ownership of the contract.
+
+*Overrides the default `transferOwnership` function to make the new owner an operator.*
+
+
+```solidity
+function transferOwnership(address newOwner) public override onlyOwner;
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`newOwner`|`address`|address of the new owner.|
+
+
+### createBuyer
+
+Creates a new buyer agent.
+
+*Emits a `BuyerCreated` event.*
+
+
+```solidity
+function createBuyer(string calldata _name, string calldata _description, uint96 _feeRoyalty, uint256 _amountPerRound)
+    external
+    returns (BuyerAgent);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`BuyerAgent`|address of the new buyer agent.|
+
 
 ### list
 
@@ -140,15 +183,27 @@ Executes the purchase of a listing for a buyer for the given asset.
 function purchase(address _asset) external;
 ```
 
+### setFactories
+
+Set the factories for Buyer Agents and Swan Assets.
+
+*Only callable by owner.*
+
+
+```solidity
+function setFactories(address _buyerAgentFactory, address _swanAssetFactory) external onlyOwner;
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`_buyerAgentFactory`|`address`|new BuyerAgentFactory address|
+|`_swanAssetFactory`|`address`|new SwanAssetFactory address|
+
+
 ### getListingPrice
 
-Returns the asset status with the given asset address.
-
-*Active: If the asset has not been purchased or the next round has not started.*
-
-*Inactive: If the assets's purchaseRound has passed or delisted by the creator of the asset.*
-
-*Sold: If the asset has already been purchased by the buyer.*
+Returns the asset price with the given asset address.
 
 
 ```solidity
@@ -158,8 +213,6 @@ function getListingPrice(address _asset) external view returns (uint256);
 ### getListedAssets
 
 Returns the number of assets with the given buyer and round.
-
-*Assets can be assumed to be*
 
 
 ```solidity
@@ -174,25 +227,6 @@ Returns the asset listing with the given asset address.
 ```solidity
 function getListing(address _asset) external view returns (AssetListing memory);
 ```
-
-### createBuyer
-
-Creates a new buyer agent.
-
-*Emits a `BuyerCreated` event.*
-
-
-```solidity
-function createBuyer(string calldata _name, string calldata _description, uint96 _feeRoyalty, uint256 _amountPerRound)
-    external
-    returns (BuyerAgent);
-```
-**Returns**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`<none>`|`BuyerAgent`|address of the new buyer agent.|
-
 
 ## Events
 ### AssetListed
@@ -283,7 +317,7 @@ Holds the listing information.
 
 *`createdAt` is the timestamp of the Asset creation.*
 
-*`royaltyFee` is the royaltyFee of the buyerAgent.*
+*`feeRoyalty` is the royalty fee of the buyerAgent.*
 
 *`price` is the price of the Asset.*
 
@@ -299,7 +333,7 @@ Holds the listing information.
 ```solidity
 struct AssetListing {
     uint256 createdAt;
-    uint96 royaltyFee;
+    uint96 feeRoyalty;
     uint256 price;
     address seller;
     address buyer;

@@ -1,8 +1,8 @@
 # BuyerAgent
-[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/ceefa4b0353ce4c0f1536b7318fa82b208305342/contracts/swan/BuyerAgent.sol)
+[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/b941dcd71134f5be2e73ec6ee0a8aa50cf333ffb/src/BuyerAgent.sol)
 
 **Inherits:**
-Ownable, IERC721Receiver
+Ownable
 
 BuyerAgent is responsible for buying the assets from Swan.
 
@@ -66,12 +66,12 @@ bytes public state;
 ```
 
 
-### royaltyFee
+### feeRoyalty
 Royalty fees for the buyer agent.
 
 
 ```solidity
-uint96 public royaltyFee;
+uint96 public feeRoyalty;
 ```
 
 
@@ -155,7 +155,7 @@ modifier onlyAuthorized();
 
 Create the buyer agent.
 
-*`_royaltyFee` should be between 1 and 100.*
+*`_feeRoyalty` should be between 1 and maxBuyerAgentFee in the swan market parameters.*
 
 *All tokens are approved to the oracle coordinator of operator.*
 
@@ -164,29 +164,18 @@ Create the buyer agent.
 constructor(
     string memory _name,
     string memory _description,
-    uint96 _royaltyFee,
+    uint96 _feeRoyalty,
     uint256 _amountPerRound,
     address _operator,
     address _owner
 ) Ownable(_owner);
 ```
 
-### onERC721Received
-
-Function to receive ERC721 tokens via safe transfer.
-
-*[See more](https://eips.ethereum.org/EIPS/eip-721).*
-
-
-```solidity
-function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4);
-```
-
 ### minFundAmount
 
 The minimum amount of money that the buyer must leave within the contract.
 
-*minFundAmount = amountPerRound + 2 * oracleTotalFee*
+*minFundAmount should be `amountPerRound + oracleFee` to be able to make requests.*
 
 
 ```solidity
@@ -412,13 +401,13 @@ Function to set feeRoyalty.
 
 
 ```solidity
-function setFeeRoyalty(uint96 _fee) public onlyOwner;
+function setFeeRoyalty(uint96 newFeeRoyalty) public onlyOwner;
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`_fee`|`uint96`|new feeRoyalty, must be between 1 and 100.|
+|`newFeeRoyalty`|`uint96`|must be between 1 and 100.|
 
 
 ### setAmountPerRound
@@ -439,6 +428,39 @@ function setAmountPerRound(uint256 _amountPerRound) external onlyOwner;
 |----|----|-----------|
 |`_amountPerRound`|`uint256`|new amountPerRound.|
 
+
+## Events
+### StateRequest
+Emitted when a state update request is made.
+
+
+```solidity
+event StateRequest(uint256 indexed taskId, uint256 indexed round);
+```
+
+### PurchaseRequest
+Emitted when a purchase request is made.
+
+
+```solidity
+event PurchaseRequest(uint256 indexed taskId, uint256 indexed round);
+```
+
+### Purchase
+Emitted when a purchase is made.
+
+
+```solidity
+event Purchase(uint256 indexed taskId, uint256 indexed round);
+```
+
+### StateUpdate
+Emitted when the state is updated.
+
+
+```solidity
+event StateUpdate(uint256 indexed taskId, uint256 indexed round);
+```
 
 ## Errors
 ### MinFundSubceeded
