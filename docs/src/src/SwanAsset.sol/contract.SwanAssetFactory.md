@@ -1,5 +1,5 @@
 # SwanAssetFactory
-[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/b941dcd71134f5be2e73ec6ee0a8aa50cf333ffb/src/SwanAsset.sol)
+[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/71d5f1b72c5506ee91313ea31c9a617e611d9d74/src/SwanAsset.sol)
 
 Factory contract to deploy SwanAsset tokens.
 
