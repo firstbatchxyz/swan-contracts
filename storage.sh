@@ -1,6 +1,6 @@
 #!/bin/bash
 OUTPUT_PATH=${1:-storage}
-EXCLUDE="test|mock|libraries|"
+EXCLUDE="test|mock|script"
 
 IFS=$'\n'
 CONTRACT_FILES=($(find ./src -type f))

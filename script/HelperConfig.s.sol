@@ -51,7 +51,7 @@ contract HelperConfig is Script {
         minScore = 1;
 
         // for base sepolia
-        if (block.chainid == 84532) {
+        if (block.chainid == 84532 || block.chainid == 8453) {
             // use deployed weth
             token = WETH9(payable(0x4200000000000000000000000000000000000006));
         }

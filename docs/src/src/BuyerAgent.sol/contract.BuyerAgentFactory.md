@@ -1,5 +1,5 @@
 # BuyerAgentFactory
-[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/71d5f1b72c5506ee91313ea31c9a617e611d9d74/src/BuyerAgent.sol)
+[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/9405ff2bcd559928c6612c334c22d32bfecae969/src/BuyerAgent.sol)
 
 Factory contract to deploy BuyerAgent contracts.
 

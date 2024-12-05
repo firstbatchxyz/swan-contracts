@@ -18,19 +18,19 @@ forge build
 Run tests on local:
 
 ```sh
-forge test
+forge test --force
 ```
 
 or on any other evm chain:
 
 ```sh
-forge test --rpc-url <CHAIN_RPC_URL>
+forge test --rpc-url <RPC_URL>
 ```
 
 ## Deployment
 
 **Step 1.**
-Import your `PUBLIC_KEY` and `ETHERSCAN_API_KEY` to env file.
+Import your `ETHERSCAN_API_KEY` to env file.
 
 > [!NOTE]
 >
@@ -69,18 +69,23 @@ anvil
 ```
 
 **Step 5.**
-Deploy the contracts on local with:
+Deploy the contracts with:
 
 ```sh
-forge script ./script/Deploy.s.sol:Deploy --account <FILE_NAME_OF_YOUR_KEYSTORE> --sender <DEPLOYER_PUBLIC_KEY> --broadcast
+forge script ./script/Deploy.s.sol:Deploy --rpc-url <RPC_URL> --account <FILE_NAME_OF_YOUR_KEYSTORE> --sender <DEPLOYER_PUBLIC_KEY> --broadcast
 ```
 or for instant verification use:
 
 ```sh
-forge script ./script/Deploy.s.sol:Deploy --account <FILE_NAME_OF_YOUR_KEYSTORE> --sender <DEPLOYER_PUBLIC_KEY> --broadcast --verify --verifier <etherscan|blockscout|sourcify>
+forge script ./script/Deploy.s.sol:Deploy --rpc-url <RPC_URL> --account <FILE_NAME_OF_YOUR_KEYSTORE> --sender <DEPLOYER_PUBLIC_KEY> --broadcast --verify --verifier <etherscan|blockscout|sourcify> --verifier-url <VERIFIER_URL>
 ```
 
-Deployment for another chain add `--rpc-url <CHAIN_URL>` to commands above.
+> [!NOTE]
+> `<VERIFIER_URL>` should be expolorer's homepage url. Forge reads your `<ETHERSCAN_API_KEY>` from .env file so you don't need to add this at the end of `<VERIFIER_URL>`.
+>
+> e.g. 
+> `https://base-sepolia.blockscout.com/api/` for `Base Sepolia Network`
+>
 
 You can see deployed contract addresses under the `deployment/<chainid>.json`
 
@@ -89,7 +94,7 @@ You can see deployed contract addresses under the `deployment/<chainid>.json`
 Verify contract manually with:
 
 ```sh
-forge verify-contract <CONTRACT_ADDRESS> src/$<CONTRACT_NAME>.sol:<CONTRACT_NAME> --verifier <etherscan|blockscout|sourcify>
+forge verify-contract <CONTRACT_ADDRESS> src/$<CONTRACT_NAME>.sol:<CONTRACT_NAME> --verifier <etherscan|blockscout|sourcify> --verifier-url <VERIFIER_URL>
 ```
 
 ## Coverage
