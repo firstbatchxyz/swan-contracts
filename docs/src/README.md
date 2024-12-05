@@ -54,7 +54,7 @@ cast wallet list
 > You HAVE to type your password on the terminal to be able to use your keys. (e.g when deploying a contract)
 
 **Step 3.**
-Enter your private key (associated with the public key you added to env file) and password on terminal. You'll see your public key on terminal.
+Enter your private key (associated with your public key) and password on terminal. You'll see your public key on terminal.
 
 > [!NOTE]
 >

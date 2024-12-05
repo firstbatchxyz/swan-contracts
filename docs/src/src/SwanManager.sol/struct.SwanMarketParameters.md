@@ -1,5 +1,5 @@
 # SwanMarketParameters
-[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/9405ff2bcd559928c6612c334c22d32bfecae969/src/SwanManager.sol)
+[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/170a81d7fdcb6e8e1e1df26e3a5bd45ec4316d4a/src/SwanManager.sol)
 
 Collection of market-related parameters.
 
