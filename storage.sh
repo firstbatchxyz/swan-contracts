@@ -1,9 +1,9 @@
 #!/bin/bash
 OUTPUT_PATH=${1:-storage}
-EXCLUDE="test|mock|libraries|"
+EXCLUDE="test|mock|script"
 
 IFS=$'\n'
-CONTRACT_FILES=($(find ./contracts -type f))
+CONTRACT_FILES=($(find ./src -type f))
 unset IFS
 
 echo "Generating layouts in $OUTPUT_PATH"
