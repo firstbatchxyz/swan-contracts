@@ -3,25 +3,25 @@ pragma solidity ^0.8.20;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOracleTask.sol";
-import {Swan, SwanBuyerPurchaseOracleProtocol, SwanBuyerStateOracleProtocol} from "./Swan.sol";
+import {Swan, SwanAIAgentPurchaseOracleProtocol, SwanAIAgentStateOracleProtocol} from "./Swan.sol";
 import {SwanMarketParameters} from "./SwanManager.sol";
 
-/// @notice Factory contract to deploy BuyerAgent contracts.
+/// @notice Factory contract to deploy AIAgent contracts.
 /// @dev This saves from contract space for Swan.
-contract BuyerAgentFactory {
+contract AIAgentFactory {
     function deploy(
         string memory _name,
         string memory _description,
         uint96 _feeRoyalty,
         uint256 _amountPerRound,
         address _owner
-    ) external returns (BuyerAgent) {
-        return new BuyerAgent(_name, _description, _feeRoyalty, _amountPerRound, msg.sender, _owner);
+    ) external returns (AIAgent) {
+        return new AIAgent(_name, _description, _feeRoyalty, _amountPerRound, msg.sender, _owner);
     }
 }
 
-/// @notice BuyerAgent is responsible for buying the assets from Swan.
-contract BuyerAgent is Ownable {
+/// @notice AIAgent is responsible for buying the artifacts from Swan.
+contract AIAgent is Ownable {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -32,7 +32,7 @@ contract BuyerAgent is Ownable {
     /// @notice Given fee is invalid, e.g. not within the range.
     error InvalidFee(uint256 fee);
 
-    /// @notice Asset count limit exceeded for this round
+    /// @notice Price limit exceeded for this round
     error BuyLimitExceeded(uint256 have, uint256 want);
 
     /// @notice Invalid phase
@@ -69,7 +69,7 @@ contract BuyerAgent is Ownable {
 
     /// @notice Phase of the purchase loop.
     enum Phase {
-        Sell,
+        Listing,
         Buy,
         Withdraw
     }
@@ -83,27 +83,27 @@ contract BuyerAgent is Ownable {
     /// @dev When calculating the round, we will use this index to determine the start interval.
     uint256 public immutable marketParameterIdx;
 
-    /// @notice Buyer agent name.
+    /// @notice AI agent name.
     string public name;
-    /// @notice Buyer agent description, can include backstory, behavior and objective together.
+    /// @notice AI agent description, can include backstory, behavior and objective together.
     string public description;
-    /// @notice State of the buyer agent.
+    /// @notice State of the AI agent.
     /// @dev Only updated by the oracle via `updateState`.
     bytes public state;
-    /// @notice Royalty fees for the buyer agent.
+    /// @notice Royalty fees for the AI agent.
     uint96 public feeRoyalty;
     /// @notice The max amount of money the agent can spend per round.
     uint256 public amountPerRound;
 
-    /// @notice The assets that the buyer agent has.
-    mapping(uint256 round => address[] assets) public inventory;
+    /// @notice The artifacts that the AI agent has.
+    mapping(uint256 round => address[] artifacts) public inventory;
     /// @notice Amount of money spent on each round.
     mapping(uint256 round => uint256 spending) public spendings;
 
     /// @notice Oracle requests for each round about item purchases.
     /// @dev A taskId of 0 means no request has been made.
     mapping(uint256 round => uint256 taskId) public oraclePurchaseRequests;
-    /// @notice Oracle requests for each round about buyer state updates.
+    /// @notice Oracle requests for each round about agent state updates.
     /// @dev A taskId of 0 means no request has been made.
     /// @dev A non-zero taskId means a request has been made, but not necessarily processed.
     /// @dev To see if a task is completed, check `isOracleTaskProcessed`.
@@ -130,8 +130,8 @@ contract BuyerAgent is Ownable {
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Create the buyer agent.
-    /// @dev `_feeRoyalty` should be between 1 and maxBuyerAgentFee in the swan market parameters.
+    /// @notice Creates AI agent.
+    /// @dev `_feeRoyalty` should be between 1 and maxAIAgentFee in the swan market parameters.
     /// @dev All tokens are approved to the oracle coordinator of operator.
     constructor(
         string memory _name,
@@ -143,7 +143,7 @@ contract BuyerAgent is Ownable {
     ) Ownable(_owner) {
         swan = Swan(_operator);
 
-        if (_feeRoyalty < 1 || _feeRoyalty > swan.getCurrentMarketParameters().maxBuyerAgentFee) {
+        if (_feeRoyalty < 1 || _feeRoyalty > swan.getCurrentMarketParameters().maxAgentFee) {
             revert InvalidFee(_feeRoyalty);
         }
 
@@ -164,7 +164,7 @@ contract BuyerAgent is Ownable {
                                   LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice The minimum amount of money that the buyer must leave within the contract.
+    /// @notice The minimum amount of money that the agent must leave within the contract.
     /// @dev minFundAmount should be `amountPerRound + oracleFee` to be able to make requests.
     function minFundAmount() public view returns (uint256) {
         return amountPerRound + swan.getOracleFee();
@@ -193,7 +193,7 @@ contract BuyerAgent is Ownable {
         (uint256 round,) = _checkRoundPhase(Phase.Withdraw);
 
         oracleStateRequests[round] =
-            swan.coordinator().request(SwanBuyerStateOracleProtocol, _input, _models, swan.getOracleParameters());
+            swan.coordinator().request(SwanAIAgentStateOracleProtocol, _input, _models, swan.getOracleParameters());
 
         emit StateRequest(oracleStateRequests[round], round);
     }
@@ -210,12 +210,12 @@ contract BuyerAgent is Ownable {
         (uint256 round,) = _checkRoundPhase(Phase.Buy);
 
         oraclePurchaseRequests[round] =
-            swan.coordinator().request(SwanBuyerPurchaseOracleProtocol, _input, _models, swan.getOracleParameters());
+            swan.coordinator().request(SwanAIAgentPurchaseOracleProtocol, _input, _models, swan.getOracleParameters());
 
         emit PurchaseRequest(oraclePurchaseRequests[round], round);
     }
 
-    /// @notice Function to update the Buyer state.
+    /// @notice Function to update the AI agent state.
     /// @dev Works only in `Withdraw` phase.
     /// @dev Can be called multiple times within a single round, although is not expected to be done so.
     function updateState() external onlyAuthorized {
@@ -238,7 +238,7 @@ contract BuyerAgent is Ownable {
         emit StateUpdate(taskId, round);
     }
 
-    /// @notice Function to buy the asset from the Swan with the given assed address.
+    /// @notice Function to buy the artifacts from the Swan.
     /// @dev Works only in `Buy` phase.
     /// @dev Can be called multiple times within a single round, although is not expected to be done so.
     /// @dev This is not expected to revert if the oracle works correctly.
@@ -254,24 +254,24 @@ contract BuyerAgent is Ownable {
 
         // read oracle result using the latest task id for this round
         bytes memory output = oracleResult(taskId);
-        address[] memory assets = abi.decode(output, (address[]));
+        address[] memory artifacts = abi.decode(output, (address[]));
 
-        // we purchase each asset returned
-        for (uint256 i = 0; i < assets.length; i++) {
-            address asset = assets[i];
+        // we purchase each artifact returned
+        for (uint256 i = 0; i < artifacts.length; i++) {
+            address artifact = artifacts[i];
 
             // must not exceed the roundly buy-limit
-            uint256 price = swan.getListingPrice(asset);
+            uint256 price = swan.getListingPrice(artifact);
             spendings[round] += price;
             if (spendings[round] > amountPerRound) {
                 revert BuyLimitExceeded(spendings[round], amountPerRound);
             }
 
             // add to inventory
-            inventory[round].push(asset);
+            inventory[round].push(artifact);
 
             // make the actual purchase
-            swan.purchase(asset);
+            swan.purchase(artifact);
         }
 
         // update taskId as completed
@@ -282,8 +282,8 @@ contract BuyerAgent is Ownable {
 
     /// @notice Function to withdraw the tokens from the contract.
     /// @param _amount amount to withdraw.
-    /// @dev If the current phase is `Withdraw` buyer can withdraw any amount of tokens.
-    /// @dev If the current phase is not `Withdraw` buyer has to leave at least `minFundAmount` in the contract.
+    /// @dev If the current phase is `Withdraw` agent owner can withdraw any amount of tokens.
+    /// @dev If the current phase is not `Withdraw` agent owner has to leave at least `minFundAmount` in the contract.
     function withdraw(uint96 _amount) public onlyAuthorized {
         (, Phase phase,) = getRoundPhase();
 
@@ -297,11 +297,11 @@ contract BuyerAgent is Ownable {
             }
         }
 
-        // transfer the tokens to the owner of Buyer
+        // transfer the tokens to the owner of AI agent
         swan.token().transfer(owner(), _amount);
     }
 
-    /// @notice Alias to get the token balance of buyer agent.
+    /// @notice Alias to get the token balance of AI agent.
     /// @return token balance
     function treasury() public view returns (uint256) {
         return swan.token().balanceOf(address(this));
@@ -321,9 +321,9 @@ contract BuyerAgent is Ownable {
     /// @notice Computes cycle time by using intervals from given market parameters.
     /// @dev Used in 'computePhase()' function.
     /// @param params Market parameters of the Swan.
-    /// @return the total cycle time that is `sellInterval + buyInterval + withdrawInterval`.
+    /// @return the total cycle time that is `listingInterval + buyInterval + withdrawInterval`.
     function _computeCycleTime(SwanMarketParameters memory params) internal pure returns (uint256) {
-        return params.sellInterval + params.buyInterval + params.withdrawInterval;
+        return params.listingInterval + params.buyInterval + params.withdrawInterval;
     }
 
     /// @notice Function to compute the current round, phase and time until next phase w.r.t given market parameters.
@@ -341,20 +341,20 @@ contract BuyerAgent is Ownable {
 
         // example:
         // |------------->             | (roundTime)
-        // |--Sell--|--Buy--|-Withdraw-| (cycleTime)
-        if (roundTime <= params.sellInterval) {
-            return (round, Phase.Sell, params.sellInterval - roundTime);
-        } else if (roundTime <= (params.sellInterval + params.buyInterval)) {
-            return (round, Phase.Buy, params.sellInterval + params.buyInterval - roundTime);
+        // |--Listing--|--Buy--|-Withdraw-| (cycleTime)
+        if (roundTime <= params.listingInterval) {
+            return (round, Phase.Listing, params.listingInterval - roundTime);
+        } else if (roundTime <= (params.listingInterval + params.buyInterval)) {
+            return (round, Phase.Buy, params.listingInterval + params.buyInterval - roundTime);
         } else {
             return (round, Phase.Withdraw, cycleTime - roundTime);
         }
     }
 
     /// @notice Function to return the current round, elapsed round and the current phase according to the current time.
-    /// @dev Each round is composed of three phases in order: Sell, Buy, Withdraw.
-    /// @dev Internally, it computes the intervals from market parameters at the creation of this agent, until now.
-    /// @dev If there are many parameter changes throughout the life of this agent, this may cost more GAS.
+    /// @dev Each round is composed of three phases in order: Listing, Buy, Withdraw.
+    /// @dev Internally, it computes the intervals from market parameters at the creation of this AI agent, until now.
+    /// @dev If there are many parameter changes throughout the life of this AI agent, this may cost more GAS.
     /// @return round, phase, time until next phase
     function getRoundPhase() public view returns (uint256, Phase, uint256) {
         SwanMarketParameters[] memory marketParams = swan.getMarketParameters();

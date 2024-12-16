@@ -1,44 +1,44 @@
 # Swan
-[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/170a81d7fdcb6e8e1e1df26e3a5bd45ec4316d4a/src/Swan.sol)
+[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/6a4c427284ef9a1b566dad7645b1c42a55dd3690/src/Swan.sol)
 
 **Inherits:**
 [SwanManager](/src/SwanManager.sol/abstract.SwanManager.md), UUPSUpgradeable
 
 
 ## State Variables
-### buyerAgentFactory
-Factory contract to deploy Buyer Agents.
+### agentFactory
+Factory contract to deploy AI Agents.
 
 
 ```solidity
-BuyerAgentFactory public buyerAgentFactory;
+AIAgentFactory public agentFactory;
 ```
 
 
-### swanAssetFactory
-Factory contract to deploy SwanAsset tokens.
+### artifactFactory
+Factory contract to deploy Artifact tokens.
 
 
 ```solidity
-SwanAssetFactory public swanAssetFactory;
+ArtifactFactory public artifactFactory;
 ```
 
 
 ### listings
-To keep track of the assets for purchase.
+To keep track of the artifacts for purchase.
 
 
 ```solidity
-mapping(address asset => AssetListing) public listings;
+mapping(address artifact => ArtifactListing) public listings;
 ```
 
 
-### assetsPerBuyerRound
-Keeps track of assets per buyer & round.
+### artifactsPerAgentRound
+Keeps track of artifacts per agent & round.
 
 
 ```solidity
-mapping(address buyer => mapping(uint256 round => address[])) public assetsPerBuyerRound;
+mapping(address agent => mapping(uint256 round => address[])) public artifactsPerAgentRound;
 ```
 
 
@@ -85,8 +85,8 @@ function initialize(
     LLMOracleTaskParameters calldata _oracleParameters,
     address _coordinator,
     address _token,
-    address _buyerAgentFactory,
-    address _swanAssetFactory
+    address _agentFactory,
+    address _artifactFactory
 ) public initializer;
 ```
 
@@ -107,32 +107,32 @@ function transferOwnership(address newOwner) public override onlyOwner;
 |`newOwner`|`address`|address of the new owner.|
 
 
-### createBuyer
+### createAgent
 
-Creates a new buyer agent.
+Creates a new AI agent.
 
-*Emits a `BuyerCreated` event.*
+*Emits a `AIAgentCreated` event.*
 
 
 ```solidity
-function createBuyer(string calldata _name, string calldata _description, uint96 _feeRoyalty, uint256 _amountPerRound)
+function createAgent(string calldata _name, string calldata _description, uint96 _feeRoyalty, uint256 _amountPerRound)
     external
-    returns (BuyerAgent);
+    returns (AIAgent);
 ```
 **Returns**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`<none>`|`BuyerAgent`|address of the new buyer agent.|
+|`<none>`|`AIAgent`|address of the new AI agent.|
 
 
 ### list
 
-Creates a new Asset.
+Creates a new artifact.
 
 
 ```solidity
-function list(string calldata _name, string calldata _symbol, bytes calldata _desc, uint256 _price, address _buyer)
+function list(string calldata _name, string calldata _symbol, bytes calldata _desc, uint256 _price, address _agent)
     external;
 ```
 **Parameters**
@@ -143,23 +143,23 @@ function list(string calldata _name, string calldata _symbol, bytes calldata _de
 |`_symbol`|`string`|symbol of the token.|
 |`_desc`|`bytes`|description of the token.|
 |`_price`|`uint256`|price of the token.|
-|`_buyer`|`address`|address of the buyer.|
+|`_agent`|`address`|address of the agent.|
 
 
 ### relist
 
-Relist the asset for another round and/or another buyer and/or another price.
+Relist the artifact for another round and/or another agent and/or another price.
 
 
 ```solidity
-function relist(address _asset, address _buyer, uint256 _price) external;
+function relist(address _artifact, address _agent, uint256 _price) external;
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`_asset`|`address`|address of the asset.|
-|`_buyer`|`address`|new buyerAgent for the asset.|
+|`_artifact`|`address`|address of the artifact.|
+|`_agent`|`address`|new AIAgent for the artifact.|
 |`_price`|`uint256`|new price of the token.|
 
 
@@ -169,111 +169,111 @@ Function to transfer the royalties to the seller & Dria.
 
 
 ```solidity
-function transferRoyalties(AssetListing storage asset) internal;
+function transferRoyalties(ArtifactListing storage _artifact) internal;
 ```
 
 ### purchase
 
-Executes the purchase of a listing for a buyer for the given asset.
+Executes the purchase of a listing for a agent for the given artifact.
 
-*Must be called by the buyer of the given asset.*
+*Must be called by the agent of the given artifact.*
 
 
 ```solidity
-function purchase(address _asset) external;
+function purchase(address _artifact) external;
 ```
 
 ### setFactories
 
-Set the factories for Buyer Agents and Swan Assets.
+Set the factories for AI Agents and Artifacts.
 
 *Only callable by owner.*
 
 
 ```solidity
-function setFactories(address _buyerAgentFactory, address _swanAssetFactory) external onlyOwner;
+function setFactories(address _agentFactory, address _artifactFactory) external onlyOwner;
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`_buyerAgentFactory`|`address`|new BuyerAgentFactory address|
-|`_swanAssetFactory`|`address`|new SwanAssetFactory address|
+|`_agentFactory`|`address`|new AIAgentFactory address|
+|`_artifactFactory`|`address`|new ArtifactFactory address|
 
 
 ### getListingPrice
 
-Returns the asset price with the given asset address.
+Returns the artifact price with the given artifact address.
 
 
 ```solidity
-function getListingPrice(address _asset) external view returns (uint256);
+function getListingPrice(address _artifact) external view returns (uint256);
 ```
 
-### getListedAssets
+### getListedArtifacts
 
-Returns the number of assets with the given buyer and round.
+Returns the number of artifacts with the given agent and round.
 
 
 ```solidity
-function getListedAssets(address _buyer, uint256 _round) external view returns (address[] memory);
+function getListedArtifacts(address _agent, uint256 _round) external view returns (address[] memory);
 ```
 
 ### getListing
 
-Returns the asset listing with the given asset address.
+Returns the artifact listing with the given artifact address.
 
 
 ```solidity
-function getListing(address _asset) external view returns (AssetListing memory);
+function getListing(address _artifact) external view returns (ArtifactListing memory);
 ```
 
 ## Events
-### AssetListed
-`asset` is created & listed for sale.
+### ArtifactListed
+Artifact is created & listed for sale.
 
 
 ```solidity
-event AssetListed(address indexed owner, address indexed asset, uint256 price);
+event ArtifactListed(address indexed owner, address indexed artifact, uint256 price);
 ```
 
-### AssetRelisted
-Asset relisted by it's `owner`.
+### ArtifactRelisted
+Artifact relisted by it's `owner`.
 
-*This may happen if a listed asset is not sold in the current round, and is relisted in a new round.*
+*This may happen if a listed artifact is not sold in the current round, and is relisted in a new round.*
 
 
 ```solidity
-event AssetRelisted(address indexed owner, address indexed buyer, address indexed asset, uint256 price);
+event ArtifactRelisted(address indexed owner, address indexed agent, address indexed artifact, uint256 price);
 ```
 
-### AssetSold
-A `buyer` purchased an Asset.
+### ArtifactSold
+An `agent` purchased an artifact.
 
 
 ```solidity
-event AssetSold(address indexed owner, address indexed buyer, address indexed asset, uint256 price);
+event ArtifactSold(address indexed owner, address indexed agent, address indexed artifact, uint256 price);
 ```
 
-### BuyerCreated
-A new buyer agent is created.
+### AIAgentCreated
+A new AI agent is created.
 
-*`owner` is the owner of the buyer agent.*
+*`owner` is the owner of the AI agent.*
 
-*`buyer` is the address of the buyer agent.*
+*`agent` is the address of the AI agent.*
 
 
 ```solidity
-event BuyerCreated(address indexed owner, address indexed buyer);
+event AIAgentCreated(address indexed owner, address indexed agent);
 ```
 
 ## Errors
 ### InvalidStatus
-Invalid asset status.
+Invalid artifact status.
 
 
 ```solidity
-error InvalidStatus(AssetStatus have, AssetStatus want);
+error InvalidStatus(ArtifactStatus have, ArtifactStatus want);
 ```
 
 ### Unauthorized
@@ -285,26 +285,26 @@ error Unauthorized(address caller);
 ```
 
 ### RoundNotFinished
-The given asset is still in the given round.
+The given artifact is still in the given round.
 
-*Most likely coming from `relist` function, where the asset cant be
+*Most likely coming from `relist` function, where the artifact cant be
 relisted in the same round that it was listed in.*
 
 
 ```solidity
-error RoundNotFinished(address asset, uint256 round);
+error RoundNotFinished(address artifact, uint256 round);
 ```
 
-### AssetLimitExceeded
-Asset count limit exceeded for this round
+### ArtifactLimitExceeded
+Artifact count limit exceeded for this round
 
 
 ```solidity
-error AssetLimitExceeded(uint256 limit);
+error ArtifactLimitExceeded(uint256 limit);
 ```
 
 ### InvalidPrice
-Invalid price for the asset.
+Invalid price for the artifact.
 
 
 ```solidity
@@ -312,53 +312,53 @@ error InvalidPrice(uint256 price);
 ```
 
 ## Structs
-### AssetListing
+### ArtifactListing
 Holds the listing information.
 
-*`createdAt` is the timestamp of the Asset creation.*
+*`createdAt` is the timestamp of the artifact creation.*
 
-*`feeRoyalty` is the royalty fee of the buyerAgent.*
+*`feeRoyalty` is the royalty fee of the AIAgent.*
 
-*`price` is the price of the Asset.*
+*`price` is the price of the artifact.*
 
-*`seller` is the address of the creator of the Asset.*
+*`seller` is the address of the creator of the artifact.*
 
-*`buyer` is the address of the buyerAgent.*
+*`agent` is the address of the AIAgent.*
 
-*`round` is the round in which the Asset is created.*
+*`round` is the round in which the artifact is created.*
 
-*`status` is the status of the Asset.*
+*`status` is the status of the artifact.*
 
 
 ```solidity
-struct AssetListing {
+struct ArtifactListing {
     uint256 createdAt;
     uint96 feeRoyalty;
     uint256 price;
     address seller;
-    address buyer;
+    address agent;
     uint256 round;
-    AssetStatus status;
+    ArtifactStatus status;
 }
 ```
 
 ## Enums
-### AssetStatus
-Status of an asset. All assets are listed as soon as they are listed.
+### ArtifactStatus
+Status of an artifact. All artifacts are listed as soon as they are listed.
 
-*Unlisted: cannot be purchased in the current round.*
+*Unlisted: Cannot be purchased in the current round.*
 
-*Listed: can be purchase in the current round.*
+*Listed: Can be purchase in the current round.*
 
-*Sold: asset is sold.*
+*Sold: Artifact is sold.*
 
 *It is important that `Unlisted` is only the default and is not set explicitly.
-This allows to understand that if an asset is `Listed` but the round has past, it was not sold.
+This allows to understand that if an artifact is `Listed` but the round has past, it was not sold.
 The said fact is used within the `relist` logic.*
 
 
 ```solidity
-enum AssetStatus {
+enum ArtifactStatus {
     Unlisted,
     Listed,
     Sold

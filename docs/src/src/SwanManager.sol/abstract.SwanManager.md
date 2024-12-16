@@ -1,5 +1,5 @@
 # SwanManager
-[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/170a81d7fdcb6e8e1e1df26e3a5bd45ec4316d4a/src/SwanManager.sol)
+[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/6a4c427284ef9a1b566dad7645b1c42a55dd3690/src/SwanManager.sol)
 
 **Inherits:**
 OwnableUpgradeable
@@ -43,7 +43,7 @@ ERC20 public token;
 
 
 ### isOperator
-Operator addresses that can take actions on behalf of Buyer agents,
+Operator addresses that can take actions on behalf of AI agents,
 such as calling `purchase`, or `updateState` for them.
 
 
@@ -123,7 +123,7 @@ function setOracleParameters(LLMOracleTaskParameters calldata _oracleParameters)
 
 Returns the total fee required to make an oracle request.
 
-*This is mainly required by the buyer to calculate its minimum fund amount, so that it can pay the fee.*
+*This is mainly required by the agent to calculate its minimum fund amount, so that it can pay the fee.*
 
 
 ```solidity
@@ -132,7 +132,7 @@ function getOracleFee() external view returns (uint256);
 
 ### addOperator
 
-Adds an operator that can take actions on behalf of Buyer agents.
+Adds an operator that can take actions on behalf of AI agents.
 
 *Only callable by owner.*
 

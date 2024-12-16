@@ -12,23 +12,18 @@ ast = true
 build_info = true
 optimizer = true
 
-# fuzzing options
-fuzz_runs = 100
-
-# invariant options
-invariant_runs = 50
-
-# block timestamp starts from 10
-block_timestamp = 10
-
-# fs permissions for deployment
-fs_permissions = [{ access = "read", path = "out" }, { access = "write", path = "deployment" }]
-remappings = [
-    "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
-    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
-    "@openzeppelin/foundry-upgrades/=lib/openzeppelin-foundry-upgrades/src/",
-    "@firstbatch/dria-oracle-contracts/=lib/dria-oracle-contracts/src/"
+# fs permissions for deployment (false by default)
+fs_permissions = [
+    { access = "read", path = "out" },
+    { access = "read-write", path = "deployment" }
 ]
 
+# fuzzing options
+[fuzz]
+runs = 100
+
+# invariant options
+[invariant]
+runs = 20
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

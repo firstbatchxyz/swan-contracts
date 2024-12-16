@@ -13,23 +13,23 @@ import {
 /// @dev Prevents stack-too-deep.
 /// TODO: use 256-bit tight-packing here
 struct SwanMarketParameters {
-    /// @notice The interval at which the buyerAgent can withdraw the funds.
+    /// @notice The interval at which the AIAgent can withdraw the funds.
     uint256 withdrawInterval;
-    /// @notice The interval at which the creators can mint assets.
-    uint256 sellInterval;
-    /// @notice The interval at which the buyers can buy the assets.
+    /// @notice The interval at which the creators can mint artifacts.
+    uint256 listingInterval;
+    /// @notice The interval at which the agent can buy the artifacts.
     uint256 buyInterval;
-    /// @notice A fee percentage taken from each listing's buyer fee.
+    /// @notice A fee percentage taken from each listing's agent fee.
     uint256 platformFee;
-    /// @notice The maximum number of assets that can be listed per round.
-    uint256 maxAssetCount;
-    /// @notice Min asset price in the market.
-    uint256 minAssetPrice;
+    /// @notice The maximum number of artifacts that can be listed per round.
+    uint256 maxArtifactCount;
+    /// @notice Min artifact price in the market.
+    uint256 minArtifactPrice;
     /// @notice Timestamp of the block that this market parameter was added.
     /// @dev Even if this is provided by the user, it will get overwritten by the internal `block.timestamp`.
     uint256 timestamp;
-    /// @notice The maximum fee that a buyer agent can charge.
-    uint8 maxBuyerAgentFee;
+    /// @notice The maximum fee that a agent agent can charge.
+    uint8 maxAgentFee;
 }
 
 abstract contract SwanManager is OwnableUpgradeable {
@@ -47,7 +47,7 @@ abstract contract SwanManager is OwnableUpgradeable {
     /// @notice The token to be used for fee payments.
     ERC20 public token;
 
-    /// @notice Operator addresses that can take actions on behalf of Buyer agents,
+    /// @notice Operator addresses that can take actions on behalf of AI agents,
     /// such as calling `purchase`, or `updateState` for them.
     mapping(address operator => bool) public isOperator;
 
@@ -92,7 +92,7 @@ abstract contract SwanManager is OwnableUpgradeable {
     }
 
     /// @notice Returns the total fee required to make an oracle request.
-    /// @dev This is mainly required by the buyer to calculate its minimum fund amount, so that it can pay the fee.
+    /// @dev This is mainly required by the agent to calculate its minimum fund amount, so that it can pay the fee.
     function getOracleFee() external view returns (uint256) {
         (uint256 totalFee,,) = coordinator.getFee(oracleParameters);
         return totalFee;
@@ -102,7 +102,7 @@ abstract contract SwanManager is OwnableUpgradeable {
                                 OPERATORS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Adds an operator that can take actions on behalf of Buyer agents.
+    /// @notice Adds an operator that can take actions on behalf of AI agents.
     /// @dev Only callable by owner.
     /// @dev Has no effect if the operator is already authorized.
     /// @param _operator new operator address

@@ -1,10 +1,10 @@
-# BuyerAgent
-[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/6a4c427284ef9a1b566dad7645b1c42a55dd3690/src/BuyerAgent.sol)
+# AIAgent
+[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/6a4c427284ef9a1b566dad7645b1c42a55dd3690/src/AIAgent.sol)
 
 **Inherits:**
 Ownable
 
-BuyerAgent is responsible for buying the assets from Swan.
+AIAgent is responsible for buying the artifacts from Swan.
 
 
 ## State Variables
@@ -38,7 +38,7 @@ uint256 public immutable marketParameterIdx;
 
 
 ### name
-Buyer agent name.
+AI agent name.
 
 
 ```solidity
@@ -47,7 +47,7 @@ string public name;
 
 
 ### description
-Buyer agent description, can include backstory, behavior and objective together.
+AI agent description, can include backstory, behavior and objective together.
 
 
 ```solidity
@@ -56,7 +56,7 @@ string public description;
 
 
 ### state
-State of the buyer agent.
+State of the AI agent.
 
 *Only updated by the oracle via `updateState`.*
 
@@ -67,7 +67,7 @@ bytes public state;
 
 
 ### feeRoyalty
-Royalty fees for the buyer agent.
+Royalty fees for the AI agent.
 
 
 ```solidity
@@ -85,11 +85,11 @@ uint256 public amountPerRound;
 
 
 ### inventory
-The assets that the buyer agent has.
+The artifacts that the AI agent has.
 
 
 ```solidity
-mapping(uint256 round => address[] assets) public inventory;
+mapping(uint256 round => address[] artifacts) public inventory;
 ```
 
 
@@ -114,7 +114,7 @@ mapping(uint256 round => uint256 taskId) public oraclePurchaseRequests;
 
 
 ### oracleStateRequests
-Oracle requests for each round about buyer state updates.
+Oracle requests for each round about agent state updates.
 
 *A taskId of 0 means no request has been made.*
 
@@ -153,9 +153,9 @@ modifier onlyAuthorized();
 
 ### constructor
 
-Create the buyer agent.
+Creates AI agent.
 
-*`_feeRoyalty` should be between 1 and maxBuyerAgentFee in the swan market parameters.*
+*`_feeRoyalty` should be between 1 and maxAIAgentFee in the swan market parameters.*
 
 *All tokens are approved to the oracle coordinator of operator.*
 
@@ -173,7 +173,7 @@ constructor(
 
 ### minFundAmount
 
-The minimum amount of money that the buyer must leave within the contract.
+The minimum amount of money that the agent must leave within the contract.
 
 *minFundAmount should be `amountPerRound + oracleFee` to be able to make requests.*
 
@@ -243,7 +243,7 @@ function oraclePurchaseRequest(bytes calldata _input, bytes calldata _models) ex
 
 ### updateState
 
-Function to update the Buyer state.
+Function to update the AI agent state.
 
 *Works only in `Withdraw` phase.*
 
@@ -256,7 +256,7 @@ function updateState() external onlyAuthorized;
 
 ### purchase
 
-Function to buy the asset from the Swan with the given assed address.
+Function to buy the artifacts from the Swan.
 
 *Works only in `Buy` phase.*
 
@@ -273,9 +273,9 @@ function purchase() external onlyAuthorized;
 
 Function to withdraw the tokens from the contract.
 
-*If the current phase is `Withdraw` buyer can withdraw any amount of tokens.*
+*If the current phase is `Withdraw` agent owner can withdraw any amount of tokens.*
 
-*If the current phase is not `Withdraw` buyer has to leave at least `minFundAmount` in the contract.*
+*If the current phase is not `Withdraw` agent owner has to leave at least `minFundAmount` in the contract.*
 
 
 ```solidity
@@ -290,7 +290,7 @@ function withdraw(uint96 _amount) public onlyAuthorized;
 
 ### treasury
 
-Alias to get the token balance of buyer agent.
+Alias to get the token balance of AI agent.
 
 
 ```solidity
@@ -374,9 +374,9 @@ Function to return the current round, elapsed round and the current phase accord
 
 *Each round is composed of three phases in order: Listing, Buy, Withdraw.*
 
-*Internally, it computes the intervals from market parameters at the creation of this agent, until now.*
+*Internally, it computes the intervals from market parameters at the creation of this AI agent, until now.*
 
-*If there are many parameter changes throughout the life of this agent, this may cost more GAS.*
+*If there are many parameter changes throughout the life of this AI agent, this may cost more GAS.*
 
 
 ```solidity
@@ -480,7 +480,7 @@ error InvalidFee(uint256 fee);
 ```
 
 ### BuyLimitExceeded
-Asset count limit exceeded for this round
+Price limit exceeded for this round
 
 
 ```solidity
