@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.20;
 
-import {Script} from "forge-std/Script.sol";
-import {HelperConfig} from "./HelperConfig.s.sol";
 import {Upgrades} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {Script} from "forge-std/Script.sol";
+import {Vm} from "forge-std/Vm.sol";
+import {HelperConfig} from "./HelperConfig.s.sol";
+
 import {LLMOracleRegistry} from "@firstbatch/dria-oracle-contracts/LLMOracleRegistry.sol";
 import {
     LLMOracleCoordinator, LLMOracleTaskParameters
@@ -11,8 +14,6 @@ import {
 import {AIAgentFactory} from "../src/AIAgent.sol";
 import {ArtifactFactory} from "../src/Artifact.sol";
 import {Swan, SwanMarketParameters} from "../src/Swan.sol";
-import {Vm} from "forge-std/Vm.sol";
-import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 contract DeployLLMOracleRegistry is Script {
     HelperConfig public config;

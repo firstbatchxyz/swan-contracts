@@ -69,7 +69,7 @@ forge clean && forge script ./script/Deploy.s.sol:Deploy<CONTRACT_NAME> --rpc-ur
 or for instant verification use:
 
 ```sh
-forge clean && forge script ./script/Deploy.s.sol:Deploy --rpc-url <RPC_URL> --account <FILE_NAME_OF_YOUR_KEYSTORE> --sender <DEPLOYER_ADDRESS> --broadcast --verify --verifier <etherscan|blockscout|sourcify> --verifier-url <VERIFIER_URL>
+forge clean && forge script ./script/Deploy.s.sol:Deploy<CONTRACT_NAME> --rpc-url <RPC_URL> --account <FILE_NAME_OF_YOUR_KEYSTORE> --sender <DEPLOYER_ADDRESS> --broadcast --verify --verifier <etherscan|blockscout|sourcify> --verifier-url <VERIFIER_URL>
 ```
 
 > [!NOTE]

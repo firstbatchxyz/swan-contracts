@@ -206,6 +206,11 @@ contract HelperConfig is Script {
         // create dir if it doesn't exist
         vm.createDir(dir, true);
 
+        // create file if it doesn't exist
+        if (!vm.isFile(path)) {
+            vm.writeFile(path, "");
+        }
+
         // check if the key exists
         string memory contractAddresses = vm.readFile(path);
 
@@ -246,6 +251,11 @@ contract HelperConfig is Script {
 
         // create dir if it doesn't exist
         vm.createDir(dir, true);
+
+        // create file if it doesn't exist
+        if (!vm.isFile(path)) {
+            vm.writeFile(path, "");
+        }
 
         // create a new JSON object
         string memory newContract =
