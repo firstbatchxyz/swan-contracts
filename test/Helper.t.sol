@@ -10,16 +10,15 @@ import {LLMOracleRegistry, LLMOracleKind} from "@firstbatch/dria-oracle-contract
 import {LLMOracleCoordinator} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
 import {SwanMarketParameters} from "../src/SwanManager.sol";
 import {LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOracleTask.sol";
-import {BuyerAgent, BuyerAgentFactory} from "../src/BuyerAgent.sol";
-import {SwanAssetFactory} from "../src/SwanAsset.sol";
-import {BuyerAgent} from "../src/BuyerAgent.sol";
+import {AIAgent, AIAgentFactory} from "../src/AIAgent.sol";
+import {ArtifactFactory} from "../src/Artifact.sol";
 import {Swan} from "../src/Swan.sol";
 import {Stakes, Fees} from "../script/HelperConfig.s.sol";
 
 // CREATED TO PREVENT CODE DUPLICATION IN TESTS
 abstract contract Helper is Test {
-    /// @dev Parameters for the buyer agent deployment
-    struct BuyerAgentParameters {
+    /// @dev Parameters for the agent deployment
+    struct AgentParameters {
         string name;
         string description;
         uint96 feeRoyalty;
@@ -32,26 +31,27 @@ abstract contract Helper is Test {
     Fees fees;
 
     address dria;
-    address[] buyerAgentOwners;
+    address[] agentOwners;
     address[] sellers;
 
     address[] generators;
     address[] validators;
 
     uint256 currRound;
-    BuyerAgent.Phase currPhase;
+    AIAgent.Phase currPhase;
 
-    BuyerAgentParameters[] buyerAgentParameters;
+    AgentParameters[] agentParameters;
     LLMOracleTaskParameters oracleParameters;
     SwanMarketParameters marketParameters;
 
     LLMOracleCoordinator oracleCoordinator;
     LLMOracleRegistry oracleRegistry;
-    BuyerAgentFactory buyerAgentFactory;
-    SwanAssetFactory swanAssetFactory;
-    BuyerAgent[] buyerAgents;
 
-    BuyerAgent agent;
+    AIAgentFactory agentFactory;
+    ArtifactFactory artifactFactory;
+    AIAgent[] agents;
+
+    AIAgent agent;
     address agentOwner;
 
     WETH9 token;
@@ -61,7 +61,7 @@ abstract contract Helper is Test {
     bytes models = "0x";
     bytes metadata = "0x";
 
-    uint256 assetPrice = 0.01 ether;
+    uint256 artifactPrice = 0.01 ether;
     uint256 amountPerRound = 0.015 ether;
     uint8 feeRoyalty = 2;
 
@@ -80,35 +80,35 @@ abstract contract Helper is Test {
         dria = vm.addr(1);
         validators = [vm.addr(2), vm.addr(3), vm.addr(4)];
         generators = [vm.addr(5), vm.addr(6), vm.addr(7)];
-        buyerAgentOwners = [vm.addr(8), vm.addr(9)];
+        agentOwners = [vm.addr(8), vm.addr(9)];
         sellers = [vm.addr(10), vm.addr(11)];
 
         oracleParameters = LLMOracleTaskParameters({difficulty: 1, numGenerations: 2, numValidations: 1});
         marketParameters = SwanMarketParameters({
             withdrawInterval: 300, // 5 minutes
-            sellInterval: 360,
+            listingInterval: 360,
             buyInterval: 600,
             platformFee: 2, // percentage
-            maxAssetCount: 3,
+            maxArtifactCount: 3,
             timestamp: block.timestamp,
-            minAssetPrice: 0.00001 ether,
-            maxBuyerAgentFee: 75 // percentage
+            minArtifactPrice: 0.00001 ether,
+            maxAgentFee: 75 // percentage
         });
 
         stakes = Stakes({generatorStakeAmount: 0.01 ether, validatorStakeAmount: 0.01 ether});
         fees = Fees({platformFee: 1, generationFee: 0.0002 ether, validationFee: 0.00003 ether});
 
-        for (uint96 i = 0; i < buyerAgentOwners.length; i++) {
-            buyerAgentParameters.push(
-                BuyerAgentParameters({
-                    name: string.concat("BuyerAgent", vm.toString(uint256(i))),
-                    description: "description of the buyer agent",
+        for (uint96 i = 0; i < agentOwners.length; i++) {
+            agentParameters.push(
+                AgentParameters({
+                    name: string.concat("AIAgent", vm.toString(uint256(i))),
+                    description: "description of the AI agent",
                     feeRoyalty: feeRoyalty,
                     amountPerRound: amountPerRound
                 })
             );
 
-            vm.label(buyerAgentOwners[i], string.concat("BuyerAgentOwner#", vm.toString(i + 1)));
+            vm.label(agentOwners[i], string.concat("AgentOwner#", vm.toString(i + 1)));
         }
         vm.label(dria, "Dria");
         vm.label(address(this), "Helper");
@@ -120,8 +120,14 @@ abstract contract Helper is Test {
 
     modifier deployment() {
         _;
-
+        // deploy WETH9
         token = new WETH9();
+        bytes memory wethCode = address(token).code;
+        address targetAddr = 0x4200000000000000000000000000000000000006;
+        // sets the bytecode of the target address to the WETH9 contract
+        vm.etch(targetAddr, wethCode);
+        token = WETH9(payable(targetAddr));
+        assertEq(address(token), targetAddr);
 
         // deploy llm contracts
         vm.startPrank(dria);
@@ -153,8 +159,8 @@ abstract contract Helper is Test {
         oracleCoordinator = LLMOracleCoordinator(coordinatorProxy);
 
         // deploy factory contracts
-        buyerAgentFactory = new BuyerAgentFactory();
-        swanAssetFactory = new SwanAssetFactory();
+        agentFactory = new AIAgentFactory();
+        artifactFactory = new ArtifactFactory();
 
         // deploy swan
         address swanProxy = Upgrades.deployUUPSProxy(
@@ -166,8 +172,8 @@ abstract contract Helper is Test {
                     oracleParameters,
                     address(oracleCoordinator),
                     address(token),
-                    address(buyerAgentFactory),
-                    address(swanAssetFactory)
+                    address(agentFactory),
+                    address(artifactFactory)
                 )
             )
         );
@@ -178,8 +184,8 @@ abstract contract Helper is Test {
         vm.label(address(token), "WETH");
         vm.label(address(oracleRegistry), "LLMOracleRegistry");
         vm.label(address(oracleCoordinator), "LLMOracleCoordinator");
-        vm.label(address(buyerAgentFactory), "BuyerAgentFactory");
-        vm.label(address(swanAssetFactory), "SwanAssetFactory");
+        vm.label(address(agentFactory), "AIAgentFactory");
+        vm.label(address(artifactFactory), "ArtifactFactory");
     }
 
     /// @notice Add validators to the whitelist.
@@ -188,7 +194,7 @@ abstract contract Helper is Test {
         oracleRegistry.addToWhitelist(validators);
 
         for (uint256 i; i < validators.length; i++) {
-            vm.assertTrue(oracleRegistry.whitelisted(validators[i]));
+            vm.assertTrue(oracleRegistry.isWhitelisted(validators[i]));
         }
         _;
     }
@@ -223,34 +229,34 @@ abstract contract Helper is Test {
         _;
     }
 
-    /// @notice Create buyers by using buyerAgentOwners and buyerAgentParameters
-    modifier createBuyers() virtual {
-        for (uint256 i = 0; i < buyerAgentOwners.length; i++) {
-            // fund buyer agent owner
-            deal(address(token), buyerAgentOwners[i], 3 ether);
+    /// @notice Create agents by using agentOwners and agentParameters
+    modifier createAgents() virtual {
+        for (uint256 i = 0; i < agentOwners.length; i++) {
+            // fund agent owner
+            deal(address(token), agentOwners[i], 3 ether);
 
             // start recording event info
             vm.recordLogs();
 
-            vm.startPrank(buyerAgentOwners[i]);
-            BuyerAgent buyerAgent = swan.createBuyer(
-                buyerAgentParameters[i].name,
-                buyerAgentParameters[i].description,
-                buyerAgentParameters[i].feeRoyalty,
-                buyerAgentParameters[i].amountPerRound
+            vm.startPrank(agentOwners[i]);
+            AIAgent AIagent = swan.createAgent(
+                agentParameters[i].name,
+                agentParameters[i].description,
+                agentParameters[i].feeRoyalty,
+                agentParameters[i].amountPerRound
             );
 
             // get recorded logs
             Vm.Log[] memory entries = vm.getRecordedLogs();
 
             // 1. OwnershipTransferred (from Ownable)
-            // 2. Approval (from BuyerAgent constructor to approve coordinator)
-            // 3. Approval (from BuyerAgent constructor to approve swan)
-            // 4. BuyerCreated (from Swan)
+            // 2. Approval (from AIAgent constructor to approve coordinator)
+            // 3. Approval (from AIAgent constructor to approve swan)
+            // 4. AIAgentCreated (from Swan)
             assertEq(entries.length, 4);
 
-            // get the BuyerCreated event
-            Vm.Log memory buyerCreatedEvent = entries[entries.length - 1];
+            // get the AIAgentCreated event
+            Vm.Log memory agentCreatedEvent = entries[entries.length - 1];
 
             // Log is a struct that holds the event info:
             //   struct Log {
@@ -267,33 +273,33 @@ abstract contract Helper is Test {
             // emitter is the address of the contract that emitted the event
 
             // get event sig
-            bytes32 eventSig = buyerCreatedEvent.topics[0];
-            assertEq(keccak256("BuyerCreated(address,address)"), eventSig);
+            bytes32 eventSig = agentCreatedEvent.topics[0];
+            assertEq(keccak256("AIAgentCreated(address,address)"), eventSig);
 
             // decode owner & agent address from topics
-            address _owner = abi.decode(abi.encode(buyerCreatedEvent.topics[1]), (address));
-            address _agent = abi.decode(abi.encode(buyerCreatedEvent.topics[2]), (address));
+            address _owner = abi.decode(abi.encode(agentCreatedEvent.topics[1]), (address));
+            address _agent = abi.decode(abi.encode(agentCreatedEvent.topics[2]), (address));
 
-            assertEq(_owner, buyerAgentOwners[i]);
+            assertEq(_owner, agentOwners[i]);
             // emitter should be swan
-            assertEq(buyerCreatedEvent.emitter, address(swan));
+            assertEq(agentCreatedEvent.emitter, address(swan));
 
             // all guuud
-            buyerAgents.push(BuyerAgent(_agent));
+            agents.push(AIAgent(_agent));
 
-            vm.label(address(buyerAgents[i]), string.concat("BuyerAgent#", vm.toString(i + 1)));
+            vm.label(address(agents[i]), string.concat("AIAgent#", vm.toString(i + 1)));
 
             // transfer token to agent
-            token.transfer(address(buyerAgent), amountPerRound);
-            assertEq(token.balanceOf(address(buyerAgent)), amountPerRound);
+            token.transfer(address(AIagent), amountPerRound);
+            assertEq(token.balanceOf(address(AIagent)), amountPerRound);
             vm.stopPrank();
         }
 
-        assertEq(buyerAgents.length, buyerAgentOwners.length);
-        currPhase = BuyerAgent.Phase.Sell;
+        assertEq(agents.length, agentOwners.length);
+        currPhase = AIAgent.Phase.Listing;
 
-        agent = buyerAgents[0];
-        agentOwner = buyerAgentOwners[0];
+        agent = agents[0];
+        agentOwner = agentOwners[0];
         _;
     }
 
@@ -308,73 +314,72 @@ abstract contract Helper is Test {
         _;
     }
 
-    /// @notice Listing assets with the given params.
-    /// @param seller Seller of the asset.
-    /// @param assetCount Number of assets that will be listed.
-    /// @param buyerAgent Agent that assets will be list for.
-    modifier listAssets(address seller, uint256 assetCount, address buyerAgent) {
-        uint256 invalidPrice = BuyerAgent(buyerAgent).amountPerRound();
+    /// @notice Listing artifacts with the given params.
+    /// @param seller Seller of the artifact.
+    /// @param artifactCount Number of artifacts that will be listed.
+    /// @param _agent Agent that artifacts will be list for.
+    modifier listArtifacts(address seller, uint256 artifactCount, address _agent) {
+        uint256 invalidPrice = AIAgent(_agent).amountPerRound();
 
         vm.expectRevert(abi.encodeWithSelector(Swan.InvalidPrice.selector, invalidPrice));
         vm.prank(seller);
-        swan.list("SwanAsset", "SA", "description or the swan asset", invalidPrice, buyerAgent);
+        swan.list("Artifact", "SA", "description or the swan artifact", invalidPrice, _agent);
 
         vm.recordLogs();
-        vm.startPrank(seller);
-        for (uint256 i = 0; i < assetCount; i++) {
+        for (uint256 i = 0; i < artifactCount; i++) {
+            vm.prank(seller);
             swan.list(
-                string.concat("SwanAsset#", vm.toString(i)),
+                string.concat("Artifact#", vm.toString(i)),
                 string.concat("SA#", vm.toString(i)),
-                "description or the swan asset",
-                assetPrice,
-                buyerAgent
+                "description or the swan artifact",
+                artifactPrice,
+                _agent
             );
 
-            // From SwanAsset' constructor
+            // From Artifact' constructor
             // 1. OwnershipTransferred (from Ownable)
             // 2. Transfer (_safeMint() related)
             // 3. ApprovalForAll
 
             // From transferRoyalties()
             // 4. Transfer (WETH9: royalty transfer to Swan)
-            // 5. Transfer (WETH9: royalty transfer to buyer agent)
+            // 5. Transfer (WETH9: royalty transfer to AI Agent)
             // 6. Transfer (WETH9: royalty transfer to dria)
 
             // From Swan
-            // 7. AssetListed
+            // 7. ArtifactListed
             Vm.Log[] memory entries = vm.getRecordedLogs();
             assertEq(entries.length, 7);
 
-            // get the AssetListed event
-            Vm.Log memory assetListedEvent = entries[entries.length - 1];
+            // get the ArtifactListed event
+            Vm.Log memory artifactListedEvent = entries[entries.length - 1];
 
             // check event sig
-            bytes32 eventSig = assetListedEvent.topics[0];
-            assertEq(keccak256("AssetListed(address,address,uint256)"), eventSig);
+            bytes32 eventSig = artifactListedEvent.topics[0];
+            assertEq(keccak256("ArtifactListed(address,address,uint256)"), eventSig);
 
             // decode params from event
-            address _seller = abi.decode(abi.encode(assetListedEvent.topics[1]), (address));
-            address asset = abi.decode(abi.encode(assetListedEvent.topics[2]), (address));
-            uint256 price = abi.decode(assetListedEvent.data, (uint256));
+            address _seller = abi.decode(abi.encode(artifactListedEvent.topics[1]), (address));
+            address artifact = abi.decode(abi.encode(artifactListedEvent.topics[2]), (address));
+            uint256 price = abi.decode(artifactListedEvent.data, (uint256));
 
-            // get asset details
-            Swan.AssetListing memory assetListing = swan.getListing(asset);
+            // get artifact details
+            Swan.ArtifactListing memory artifactListing = swan.getListing(artifact);
 
-            assertEq(assetListing.seller, _seller);
+            assertEq(artifactListing.seller, _seller);
             assertEq(seller, _seller);
-            assertEq(assetListing.buyer, address(buyerAgent));
+            assertEq(artifactListing.agent, address(agent));
 
-            assertEq(uint8(assetListing.status), uint8(Swan.AssetStatus.Listed));
-            assertEq(assetListing.price, price);
+            assertEq(uint8(artifactListing.status), uint8(Swan.ArtifactStatus.Listed));
+            assertEq(artifactListing.price, price);
 
             // emitter should be swan
-            assertEq(assetListedEvent.emitter, address(swan));
+            assertEq(artifactListedEvent.emitter, address(swan));
         }
-        vm.stopPrank();
 
-        // check if assets listed
-        address[] memory listedAssets = swan.getListedAssets(buyerAgent, currRound);
-        assertEq(listedAssets.length, assetCount);
+        // check if artifacts listed
+        address[] memory listedArtifacts = swan.getListedArtifacts(_agent, currRound);
+        assertEq(listedArtifacts.length, artifactCount);
         _;
     }
 
@@ -441,16 +446,13 @@ abstract contract Helper is Test {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Increases time in the test
-    function increaseTime(
-        uint256 timeInseconds,
-        BuyerAgent buyerAgent,
-        BuyerAgent.Phase expectedPhase,
-        uint256 expectedRound
-    ) public {
+    function increaseTime(uint256 timeInseconds, AIAgent _agent, AIAgent.Phase expectedPhase, uint256 expectedRound)
+        public
+    {
         vm.warp(timeInseconds + 1);
 
-        // get the current round and phase of buyer agent
-        (uint256 _currRound, BuyerAgent.Phase _currPhase,) = buyerAgent.getRoundPhase();
+        // get the current round and phase of agent
+        (uint256 _currRound, AIAgent.Phase _currPhase,) = _agent.getRoundPhase();
         assertEq(uint8(_currPhase), uint8(expectedPhase));
         assertEq(uint8(_currRound), uint8(expectedRound));
     }
@@ -475,16 +477,16 @@ abstract contract Helper is Test {
     }
 
     /// @notice Makes a purchase request to Oracle Coordinator
-    function safePurchase(address buyer, BuyerAgent buyerAgent, uint256 taskId) public {
-        address[] memory listedAssets = swan.getListedAssets(address(buyerAgent), currRound);
+    function safePurchase(address _agentOwner, AIAgent _agent, uint256 taskId) public {
+        address[] memory listedArtifacts = swan.getListedArtifacts(address(_agent), currRound);
 
-        // get the listed assets as output
+        // get the listed artifacts as output
         address[] memory output = new address[](1);
-        output[0] = listedAssets[0];
+        output[0] = listedArtifacts[0];
         assertEq(output.length, 1);
 
-        vm.prank(buyer);
-        buyerAgent.oraclePurchaseRequest(input, models);
+        vm.prank(_agentOwner);
+        _agent.oraclePurchaseRequest(input, models);
 
         bytes memory encodedOutput = abi.encode((address[])(output));
 
@@ -495,12 +497,12 @@ abstract contract Helper is Test {
         // validate
         safeValidate(validators[0], taskId);
 
-        assertGe(token.balanceOf(address(buyerAgent)), assetPrice);
+        assertGe(token.balanceOf(address(_agent)), artifactPrice);
 
         // purchase and check event logs
         vm.recordLogs();
-        vm.prank(buyer);
-        buyerAgent.purchase();
+        vm.prank(_agentOwner);
+        _agent.purchase();
     }
 
     /// @dev Sets market parameters
@@ -510,19 +512,15 @@ abstract contract Helper is Test {
 
         // get new params
         SwanMarketParameters memory _newMarketParameters = swan.getCurrentMarketParameters();
-        assertEq(_newMarketParameters.sellInterval, newMarketParameters.sellInterval);
+        assertEq(_newMarketParameters.listingInterval, newMarketParameters.listingInterval);
         assertEq(_newMarketParameters.buyInterval, newMarketParameters.buyInterval);
         assertEq(_newMarketParameters.withdrawInterval, newMarketParameters.withdrawInterval);
     }
 
     /// @dev Checks if the round, phase and timeRemaining is correct
-    function checkRoundAndPhase(BuyerAgent buyerAgent, BuyerAgent.Phase phase, uint256 round)
-        public
-        view
-        returns (uint256)
-    {
-        // get the current round and phase of buyer agent
-        (uint256 _currRound, BuyerAgent.Phase _currPhase,) = buyerAgent.getRoundPhase();
+    function checkRoundAndPhase(AIAgent _agent, AIAgent.Phase phase, uint256 round) public view returns (uint256) {
+        // get the current round and phase of the agent
+        (uint256 _currRound, AIAgent.Phase _currPhase,) = _agent.getRoundPhase();
         assertEq(uint8(_currPhase), uint8(phase));
         assertEq(uint8(_currRound), uint8(round));
 

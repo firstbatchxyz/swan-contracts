@@ -1,10 +1,10 @@
-# SwanAsset
-[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/170a81d7fdcb6e8e1e1df26e3a5bd45ec4316d4a/src/SwanAsset.sol)
+# Artifact
+[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/feb8dd64d672a341a29a0a52b12cc56adf09c996/src/Artifact.sol)
 
 **Inherits:**
 ERC721, Ownable
 
-SwanAsset is an ERC721 token with a single token supply.
+Artifact is an ERC721 token with a single token supply.
 
 
 ## State Variables

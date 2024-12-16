@@ -1,38 +1,79 @@
 // SPDX-License-Identifier: Apache-2.0
+pragma solidity ^0.8.20;
 
-import {Deploy} from "../../script/Deploy.s.sol";
+import {
+    DeployAIAgentFactory,
+    DeployArtifactFactory,
+    DeployLLMOracleCoordinator,
+    DeployLLMOracleRegistry,
+    DeploySwan
+} from "../../script/Deploy.s.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {Test} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {LLMOracleRegistry} from "@firstbatch/dria-oracle-contracts/LLMOracleRegistry.sol";
 import {LLMOracleCoordinator} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
 import {Swan} from "../../src/Swan.sol";
-
-pragma solidity ^0.8.20;
+import {Upgrades} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
 
 contract DeployTest is Test {
-    Deploy deployer;
+    DeployAIAgentFactory deployAgentFactory;
+    DeployArtifactFactory deployArtifactFactory;
+    DeployLLMOracleCoordinator deployLLMOracleCoordinator;
+    DeployLLMOracleRegistry deployLLMOracleRegistry;
+    DeploySwan deploySwan;
 
-    LLMOracleCoordinator coordinator;
-    LLMOracleRegistry registry;
-    Swan swan;
+    address swanProxy;
+    address swanImpl;
+
+    address agentFactory;
+    address artifactFactory;
+
+    address llmOracleCoordinatorProxy;
+    address llmOracleCoordinatorImpl;
+
+    address llmOracleRegistryProxy;
+    address llmOracleRegistryImpl;
 
     function setUp() external {
-        deployer = new Deploy();
-        deployer.run();
+        deployAgentFactory = new DeployAIAgentFactory();
+        agentFactory = deployAgentFactory.run();
+
+        deployArtifactFactory = new DeployArtifactFactory();
+        artifactFactory = deployArtifactFactory.run();
+
+        deployLLMOracleRegistry = new DeployLLMOracleRegistry();
+        (llmOracleRegistryProxy, llmOracleRegistryImpl) = deployLLMOracleRegistry.run();
+
+        deployLLMOracleCoordinator = new DeployLLMOracleCoordinator();
+        (llmOracleCoordinatorProxy, llmOracleCoordinatorImpl) = deployLLMOracleCoordinator.run();
+
+        deploySwan = new DeploySwan();
+        (swanProxy, swanImpl) = deploySwan.run();
     }
 
     modifier deployed() {
-        registry = deployer.oracleRegistry();
-        coordinator = deployer.oracleCoordinator();
-        swan = deployer.swan();
+        // check deployed addresses are not zero
+        require(agentFactory != address(0), "AgentFactory not deployed");
+        require(artifactFactory != address(0), "ArtifactFactory not deployed");
 
-        assert(address(registry) != address(0));
-        assert(address(swan) != address(0));
-        assert(address(coordinator) != address(0));
+        require(llmOracleRegistryProxy != address(0), "LLMOracleRegistry not deployed");
+        require(llmOracleRegistryImpl != address(0), "LLMOracleRegistry implementation not deployed");
 
-        assert(coordinator.registry() == registry);
-        assert(swan.coordinator() == coordinator);
+        require(llmOracleCoordinatorProxy != address(0), "LLMOracleCoordinator not deployed");
+        require(llmOracleCoordinatorImpl != address(0), "LLMOracleCoordinator implementation not deployed");
+
+        require(swanProxy != address(0), "Swan not deployed");
+        require(swanImpl != address(0), "Swan implementation not deployed");
+
+        // check if implementations are correct
+        address expectedRegistryImpl = Upgrades.getImplementationAddress(llmOracleRegistryProxy);
+        address expectedCoordinatorImpl = Upgrades.getImplementationAddress(llmOracleCoordinatorProxy);
+        address expectedSwanImpl = Upgrades.getImplementationAddress(swanProxy);
+
+        require(llmOracleRegistryImpl == expectedRegistryImpl, "LLMOracleRegistry implementation mismatch");
+        require(llmOracleCoordinatorImpl == expectedCoordinatorImpl, "LLMOracleCoordinator implementation mismatch");
+        require(swanImpl == expectedSwanImpl, "Swan implementation mismatch");
         _;
     }
 

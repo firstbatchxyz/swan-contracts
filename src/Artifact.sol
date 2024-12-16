@@ -4,20 +4,20 @@ pragma solidity ^0.8.20;
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-/// @notice Factory contract to deploy SwanAsset tokens.
+/// @notice Factory contract to deploy Artifact tokens.
 /// @dev This saves from contract space for Swan.
-contract SwanAssetFactory {
-    /// @notice Deploys a new SwanAsset token.
+contract ArtifactFactory {
+    /// @notice Deploys a new Artifact token.
     function deploy(string memory _name, string memory _symbol, bytes memory _description, address _owner)
         external
-        returns (SwanAsset)
+        returns (Artifact)
     {
-        return new SwanAsset(_name, _symbol, _description, _owner, msg.sender);
+        return new Artifact(_name, _symbol, _description, _owner, msg.sender);
     }
 }
 
-/// @notice SwanAsset is an ERC721 token with a single token supply.
-contract SwanAsset is ERC721, Ownable {
+/// @notice Artifact is an ERC721 token with a single token supply.
+contract Artifact is ERC721, Ownable {
     /// @notice Creation time of the token
     uint256 public createdAt;
     /// @notice Description of the token

@@ -1,20 +1,20 @@
 # Constants
-[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/170a81d7fdcb6e8e1e1df26e3a5bd45ec4316d4a/src/Swan.sol)
+[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/feb8dd64d672a341a29a0a52b12cc56adf09c996/src/Swan.sol)
 
-### SwanBuyerPurchaseOracleProtocol
+### SwanAIAgentPurchaseOracleProtocol
 
 ```solidity
-bytes32 constant SwanBuyerPurchaseOracleProtocol = "swan-buyer-purchase/0.1.0";
+bytes32 constant SwanAIAgentPurchaseOracleProtocol = "swan-agent-purchase/0.1.0";
 ```
 
-### SwanBuyerStateOracleProtocol
+### SwanAIAgentStateOracleProtocol
 
 ```solidity
-bytes32 constant SwanBuyerStateOracleProtocol = "swan-buyer-state/0.1.0";
+bytes32 constant SwanAIAgentStateOracleProtocol = "swan-agent-state/0.1.0";
 ```
 
 ### BASIS_POINTS
-*Used to calculate the fee for the buyer agent to be able to compute correct amount.*
+*Used to calculate the fee for the AI agent to be able to compute correct amount.*
 
 
 ```solidity

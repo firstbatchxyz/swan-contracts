@@ -1,7 +1,7 @@
-# BuyerAgentFactory
-[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/170a81d7fdcb6e8e1e1df26e3a5bd45ec4316d4a/src/BuyerAgent.sol)
+# AIAgentFactory
+[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/feb8dd64d672a341a29a0a52b12cc56adf09c996/src/AIAgent.sol)
 
-Factory contract to deploy BuyerAgent contracts.
+Factory contract to deploy AIAgent contracts.
 
 *This saves from contract space for Swan.*
 
@@ -17,6 +17,6 @@ function deploy(
     uint96 _feeRoyalty,
     uint256 _amountPerRound,
     address _owner
-) external returns (BuyerAgent);
+) external returns (AIAgent);
 ```
 

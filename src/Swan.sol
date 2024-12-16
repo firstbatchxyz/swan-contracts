@@ -7,16 +7,16 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeab
 import {
     LLMOracleCoordinator, LLMOracleTaskParameters
 } from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
-import {BuyerAgentFactory, BuyerAgent} from "./BuyerAgent.sol";
-import {SwanAssetFactory, SwanAsset} from "./SwanAsset.sol";
+import {AIAgentFactory, AIAgent} from "./AIAgent.sol";
+import {ArtifactFactory, Artifact} from "./Artifact.sol";
 import {SwanManager, SwanMarketParameters} from "./SwanManager.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // @dev Protocol strings for Swan, checked in the Oracle.
-bytes32 constant SwanBuyerPurchaseOracleProtocol = "swan-buyer-purchase/0.1.0";
-bytes32 constant SwanBuyerStateOracleProtocol = "swan-buyer-state/0.1.0";
+bytes32 constant SwanAIAgentPurchaseOracleProtocol = "swan-agent-purchase/0.1.0";
+bytes32 constant SwanAIAgentStateOracleProtocol = "swan-agent-state/0.1.0";
 
-/// @dev Used to calculate the fee for the buyer agent to be able to compute correct amount.
+/// @dev Used to calculate the fee for the AI agent to be able to compute correct amount.
 uint256 constant BASIS_POINTS = 10_000;
 
 contract Swan is SwanManager, UUPSUpgradeable {
@@ -25,86 +25,86 @@ contract Swan is SwanManager, UUPSUpgradeable {
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Invalid asset status.
-    error InvalidStatus(AssetStatus have, AssetStatus want);
+    /// @notice Invalid artifact status.
+    error InvalidStatus(ArtifactStatus have, ArtifactStatus want);
 
     /// @notice Caller is not authorized for the operation, e.g. not a contract owner or listing owner.
     error Unauthorized(address caller);
 
-    /// @notice The given asset is still in the given round.
-    /// @dev Most likely coming from `relist` function, where the asset cant be
+    /// @notice The given artifact is still in the given round.
+    /// @dev Most likely coming from `relist` function, where the artifact cant be
     /// relisted in the same round that it was listed in.
-    error RoundNotFinished(address asset, uint256 round);
+    error RoundNotFinished(address artifact, uint256 round);
 
-    /// @notice Asset count limit exceeded for this round
-    error AssetLimitExceeded(uint256 limit);
+    /// @notice Artifact count limit exceeded for this round
+    error ArtifactLimitExceeded(uint256 limit);
 
-    /// @notice Invalid price for the asset.
+    /// @notice Invalid price for the artifact.
     error InvalidPrice(uint256 price);
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice `asset` is created & listed for sale.
-    event AssetListed(address indexed owner, address indexed asset, uint256 price);
+    /// @notice Artifact is created & listed for sale.
+    event ArtifactListed(address indexed owner, address indexed artifact, uint256 price);
 
-    /// @notice Asset relisted by it's `owner`.
-    /// @dev This may happen if a listed asset is not sold in the current round, and is relisted in a new round.
-    event AssetRelisted(address indexed owner, address indexed buyer, address indexed asset, uint256 price);
+    /// @notice Artifact relisted by it's `owner`.
+    /// @dev This may happen if a listed artifact is not sold in the current round, and is relisted in a new round.
+    event ArtifactRelisted(address indexed owner, address indexed agent, address indexed artifact, uint256 price);
 
-    /// @notice A `buyer` purchased an Asset.
-    event AssetSold(address indexed owner, address indexed buyer, address indexed asset, uint256 price);
+    /// @notice An `agent` purchased an artifact.
+    event ArtifactSold(address indexed owner, address indexed agent, address indexed artifact, uint256 price);
 
-    /// @notice A new buyer agent is created.
-    /// @dev `owner` is the owner of the buyer agent.
-    /// @dev `buyer` is the address of the buyer agent.
-    event BuyerCreated(address indexed owner, address indexed buyer);
+    /// @notice A new AI agent is created.
+    /// @dev `owner` is the owner of the AI agent.
+    /// @dev `agent` is the address of the AI agent.
+    event AIAgentCreated(address indexed owner, address indexed agent);
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Status of an asset. All assets are listed as soon as they are listed.
-    /// @dev Unlisted: cannot be purchased in the current round.
-    /// @dev Listed: can be purchase in the current round.
-    /// @dev Sold: asset is sold.
+    /// @notice Status of an artifact. All artifacts are listed as soon as they are listed.
+    /// @dev Unlisted: Cannot be purchased in the current round.
+    /// @dev Listed: Can be purchase in the current round.
+    /// @dev Sold: Artifact is sold.
     /// @dev It is important that `Unlisted` is only the default and is not set explicitly.
-    /// This allows to understand that if an asset is `Listed` but the round has past, it was not sold.
+    /// This allows to understand that if an artifact is `Listed` but the round has past, it was not sold.
     /// The said fact is used within the `relist` logic.
-    enum AssetStatus {
+    enum ArtifactStatus {
         Unlisted,
         Listed,
         Sold
     }
 
     /// @notice Holds the listing information.
-    /// @dev `createdAt` is the timestamp of the Asset creation.
-    /// @dev `feeRoyalty` is the royalty fee of the buyerAgent.
-    /// @dev `price` is the price of the Asset.
-    /// @dev `seller` is the address of the creator of the Asset.
-    /// @dev `buyer` is the address of the buyerAgent.
-    /// @dev `round` is the round in which the Asset is created.
-    /// @dev `status` is the status of the Asset.
-    struct AssetListing {
+    /// @dev `createdAt` is the timestamp of the artifact creation.
+    /// @dev `feeRoyalty` is the royalty fee of the AIAgent.
+    /// @dev `price` is the price of the artifact.
+    /// @dev `seller` is the address of the creator of the artifact.
+    /// @dev `agent` is the address of the AIAgent.
+    /// @dev `round` is the round in which the artifact is created.
+    /// @dev `status` is the status of the artifact.
+    struct ArtifactListing {
         uint256 createdAt;
         uint96 feeRoyalty;
         uint256 price;
-        address seller; // TODO: we can use asset.owner() instead of seller
-        address buyer;
+        address seller; // TODO: we can use artifact.owner() instead of seller
+        address agent;
         uint256 round;
-        AssetStatus status;
+        ArtifactStatus status;
     }
 
-    /// @notice Factory contract to deploy Buyer Agents.
-    BuyerAgentFactory public buyerAgentFactory;
-    /// @notice Factory contract to deploy SwanAsset tokens.
-    SwanAssetFactory public swanAssetFactory;
+    /// @notice Factory contract to deploy AI Agents.
+    AIAgentFactory public agentFactory;
+    /// @notice Factory contract to deploy Artifact tokens.
+    ArtifactFactory public artifactFactory;
 
-    /// @notice To keep track of the assets for purchase.
-    mapping(address asset => AssetListing) public listings;
-    /// @notice Keeps track of assets per buyer & round.
-    mapping(address buyer => mapping(uint256 round => address[])) public assetsPerBuyerRound;
+    /// @notice To keep track of the artifacts for purchase.
+    mapping(address artifact => ArtifactListing) public listings;
+    /// @notice Keeps track of artifacts per agent & round.
+    mapping(address agent => mapping(uint256 round => address[])) public artifactsPerAgentRound;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -135,8 +135,8 @@ contract Swan is SwanManager, UUPSUpgradeable {
         // contracts
         address _coordinator,
         address _token,
-        address _buyerAgentFactory,
-        address _swanAssetFactory
+        address _agentFactory,
+        address _artifactFactory
     ) public initializer {
         __Ownable_init(msg.sender);
 
@@ -149,8 +149,8 @@ contract Swan is SwanManager, UUPSUpgradeable {
         // contracts
         coordinator = LLMOracleCoordinator(_coordinator);
         token = ERC20(_token);
-        buyerAgentFactory = BuyerAgentFactory(_buyerAgentFactory);
-        swanAssetFactory = SwanAssetFactory(_swanAssetFactory);
+        agentFactory = AIAgentFactory(_agentFactory);
+        artifactFactory = ArtifactFactory(_artifactFactory);
 
         // swan is an operator
         isOperator[address(this)] = true;
@@ -179,205 +179,205 @@ contract Swan is SwanManager, UUPSUpgradeable {
                                   LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Creates a new buyer agent.
-    /// @dev Emits a `BuyerCreated` event.
-    /// @return address of the new buyer agent.
-    function createBuyer(
+    /// @notice Creates a new AI agent.
+    /// @dev Emits a `AIAgentCreated` event.
+    /// @return address of the new AI agent.
+    function createAgent(
         string calldata _name,
         string calldata _description,
         uint96 _feeRoyalty,
         uint256 _amountPerRound
-    ) external returns (BuyerAgent) {
-        BuyerAgent agent = buyerAgentFactory.deploy(_name, _description, _feeRoyalty, _amountPerRound, msg.sender);
-        emit BuyerCreated(msg.sender, address(agent));
+    ) external returns (AIAgent) {
+        AIAgent agent = agentFactory.deploy(_name, _description, _feeRoyalty, _amountPerRound, msg.sender);
+        emit AIAgentCreated(msg.sender, address(agent));
 
         return agent;
     }
 
-    /// @notice Creates a new Asset.
+    /// @notice Creates a new artifact.
     /// @param _name name of the token.
     /// @param _symbol symbol of the token.
     /// @param _desc description of the token.
     /// @param _price price of the token.
-    /// @param _buyer address of the buyer.
-    function list(string calldata _name, string calldata _symbol, bytes calldata _desc, uint256 _price, address _buyer)
+    /// @param _agent address of the agent.
+    function list(string calldata _name, string calldata _symbol, bytes calldata _desc, uint256 _price, address _agent)
         external
     {
-        BuyerAgent buyer = BuyerAgent(_buyer);
-        (uint256 round, BuyerAgent.Phase phase,) = buyer.getRoundPhase();
+        AIAgent agent = AIAgent(_agent);
+        (uint256 round, AIAgent.Phase phase,) = agent.getRoundPhase();
 
-        // buyer must be in the sell phase
-        if (phase != BuyerAgent.Phase.Sell) {
-            revert BuyerAgent.InvalidPhase(phase, BuyerAgent.Phase.Sell);
+        // agent must be in the listing phase
+        if (phase != AIAgent.Phase.Listing) {
+            revert AIAgent.InvalidPhase(phase, AIAgent.Phase.Listing);
         }
-        // asset count must not exceed `maxAssetCount`
-        if (getCurrentMarketParameters().maxAssetCount == assetsPerBuyerRound[_buyer][round].length) {
-            revert AssetLimitExceeded(getCurrentMarketParameters().maxAssetCount);
+        // artifact count must not exceed `maxArtifactCount`
+        if (getCurrentMarketParameters().maxArtifactCount == artifactsPerAgentRound[_agent][round].length) {
+            revert ArtifactLimitExceeded(getCurrentMarketParameters().maxArtifactCount);
         }
-        // check the asset's price is within the acceptable range
-        if (_price < getCurrentMarketParameters().minAssetPrice || _price >= buyer.amountPerRound()) {
+        // check the artifact price is within the acceptable range
+        if (_price < getCurrentMarketParameters().minArtifactPrice || _price >= agent.amountPerRound()) {
             revert InvalidPrice(_price);
         }
 
-        // all is well, create the asset & its listing
-        address asset = address(swanAssetFactory.deploy(_name, _symbol, _desc, msg.sender));
-        listings[asset] = AssetListing({
+        // all is well, create the artifact & its listing
+        address artifact = address(artifactFactory.deploy(_name, _symbol, _desc, msg.sender));
+        listings[artifact] = ArtifactListing({
             createdAt: block.timestamp,
-            feeRoyalty: buyer.feeRoyalty(),
+            feeRoyalty: agent.feeRoyalty(),
             price: _price,
             seller: msg.sender,
-            status: AssetStatus.Listed,
-            buyer: _buyer,
+            status: ArtifactStatus.Listed,
+            agent: _agent,
             round: round
         });
 
-        // add this to list of listings for the buyer for this round
-        assetsPerBuyerRound[_buyer][round].push(asset);
+        // add this to list of listings for the agent for this round
+        artifactsPerAgentRound[_agent][round].push(artifact);
 
         // transfer royalties
-        transferRoyalties(listings[asset]);
+        transferRoyalties(listings[artifact]);
 
-        emit AssetListed(msg.sender, asset, _price);
+        emit ArtifactListed(msg.sender, artifact, _price);
     }
 
-    /// @notice Relist the asset for another round and/or another buyer and/or another price.
-    /// @param  _asset address of the asset.
-    /// @param  _buyer new buyerAgent for the asset.
+    /// @notice Relist the artifact for another round and/or another agent and/or another price.
+    /// @param  _artifact address of the artifact.
+    /// @param  _agent new AIAgent for the artifact.
     /// @param  _price new price of the token.
-    function relist(address _asset, address _buyer, uint256 _price) external {
-        AssetListing storage asset = listings[_asset];
+    function relist(address _artifact, address _agent, uint256 _price) external {
+        ArtifactListing storage artifact = listings[_artifact];
 
-        // only the seller can relist the asset
-        if (asset.seller != msg.sender) {
+        // only the seller can relist the artifact
+        if (artifact.seller != msg.sender) {
             revert Unauthorized(msg.sender);
         }
 
-        // asset must be listed
-        if (asset.status != AssetStatus.Listed) {
-            revert InvalidStatus(asset.status, AssetStatus.Listed);
+        // artifact must be listed
+        if (artifact.status != ArtifactStatus.Listed) {
+            revert InvalidStatus(artifact.status, ArtifactStatus.Listed);
         }
 
         // relist can only happen after the round of its listing has ended
-        // we check this via the old buyer, that is the existing asset.buyer
+        // we check this via the old agent, that is the existing artifact.agent
         //
-        // note that asset is unlisted here, but is not bought at all
+        // note that artifact is unlisted here, but is not bought at all
         //
-        // perhaps it suffices to check `==` here, since buyer round
+        // perhaps it suffices to check `==` here, since agent round
         // is changed incrementially
-        (uint256 oldRound,,) = BuyerAgent(asset.buyer).getRoundPhase();
-        if (oldRound <= asset.round) {
-            revert RoundNotFinished(_asset, asset.round);
+        (uint256 oldRound,,) = AIAgent(artifact.agent).getRoundPhase();
+        if (oldRound <= artifact.round) {
+            revert RoundNotFinished(_artifact, artifact.round);
         }
 
-        // check the asset's price is within the acceptable range
-        if (_price < getCurrentMarketParameters().minAssetPrice || _price >= BuyerAgent(_buyer).amountPerRound()) {
+        // check the artifact price is within the acceptable range
+        if (_price < getCurrentMarketParameters().minArtifactPrice || _price >= AIAgent(_agent).amountPerRound()) {
             revert InvalidPrice(_price);
         }
 
-        // now we move on to the new buyer
-        BuyerAgent buyer = BuyerAgent(_buyer);
-        (uint256 round, BuyerAgent.Phase phase,) = buyer.getRoundPhase();
+        // now we move on to the new agent
+        AIAgent agent = AIAgent(_agent);
+        (uint256 round, AIAgent.Phase phase,) = agent.getRoundPhase();
 
-        // buyer must be in sell phase
-        if (phase != BuyerAgent.Phase.Sell) {
-            revert BuyerAgent.InvalidPhase(phase, BuyerAgent.Phase.Sell);
+        // agent must be in listing phase
+        if (phase != AIAgent.Phase.Listing) {
+            revert AIAgent.InvalidPhase(phase, AIAgent.Phase.Listing);
         }
 
-        // buyer must not have more than `maxAssetCount` many assets
-        uint256 count = assetsPerBuyerRound[_buyer][round].length;
-        if (count >= getCurrentMarketParameters().maxAssetCount) {
-            revert AssetLimitExceeded(count);
+        // agent must not have more than `maxArtifactCount` many artifacts
+        uint256 count = artifactsPerAgentRound[_agent][round].length;
+        if (count >= getCurrentMarketParameters().maxArtifactCount) {
+            revert ArtifactLimitExceeded(count);
         }
 
         // create listing
-        listings[_asset] = AssetListing({
+        listings[_artifact] = ArtifactListing({
             createdAt: block.timestamp,
-            feeRoyalty: buyer.feeRoyalty(),
+            feeRoyalty: agent.feeRoyalty(),
             price: _price,
             seller: msg.sender,
-            status: AssetStatus.Listed,
-            buyer: _buyer,
+            status: ArtifactStatus.Listed,
+            agent: _agent,
             round: round
         });
 
-        // add this to list of listings for the buyer for this round
-        assetsPerBuyerRound[_buyer][round].push(_asset);
+        // add this to list of listings for the agent for this round
+        artifactsPerAgentRound[_agent][round].push(_artifact);
 
         // transfer royalties
-        transferRoyalties(listings[_asset]);
+        transferRoyalties(listings[_artifact]);
 
-        emit AssetRelisted(msg.sender, _buyer, _asset, _price);
+        emit ArtifactRelisted(msg.sender, _agent, _artifact, _price);
     }
 
     /// @notice Function to transfer the royalties to the seller & Dria.
-    function transferRoyalties(AssetListing storage asset) internal {
+    function transferRoyalties(ArtifactListing storage _artifact) internal {
         // calculate fees
-        uint256 totalFee = Math.mulDiv(asset.price, (asset.feeRoyalty * 100), BASIS_POINTS);
+        uint256 totalFee = Math.mulDiv(_artifact.price, (_artifact.feeRoyalty * 100), BASIS_POINTS);
         uint256 driaFee = Math.mulDiv(totalFee, (getCurrentMarketParameters().platformFee * 100), BASIS_POINTS);
-        uint256 buyerFee = totalFee - driaFee;
+        uint256 agentFee = totalFee - driaFee;
 
         // first, Swan receives the entire fee from seller
         // this allows only one approval from the seller's side
-        token.transferFrom(asset.seller, address(this), totalFee);
+        token.transferFrom(_artifact.seller, address(this), totalFee);
 
-        // send the buyer's portion to them
-        token.transfer(asset.buyer, buyerFee);
+        // send the agent's portion to them
+        token.transfer(_artifact.agent, agentFee);
 
         // then it sends the remaining to Swan owner
         token.transfer(owner(), driaFee);
     }
 
-    /// @notice Executes the purchase of a listing for a buyer for the given asset.
-    /// @dev Must be called by the buyer of the given asset.
-    function purchase(address _asset) external {
-        AssetListing storage listing = listings[_asset];
+    /// @notice Executes the purchase of a listing for a agent for the given artifact.
+    /// @dev Must be called by the agent of the given artifact.
+    function purchase(address _artifact) external {
+        ArtifactListing storage listing = listings[_artifact];
 
-        // asset must be listed to be purchased
-        if (listing.status != AssetStatus.Listed) {
-            revert InvalidStatus(listing.status, AssetStatus.Listed);
+        // artifact must be listed to be purchased
+        if (listing.status != ArtifactStatus.Listed) {
+            revert InvalidStatus(listing.status, ArtifactStatus.Listed);
         }
 
-        // can only the buyer can purchase the asset
-        if (listing.buyer != msg.sender) {
+        // can only the agent can purchase the artifact
+        if (listing.agent != msg.sender) {
             revert Unauthorized(msg.sender);
         }
 
-        // update asset status to be sold
-        listing.status = AssetStatus.Sold;
+        // update artifact status to be sold
+        listing.status = ArtifactStatus.Sold;
 
-        // transfer asset from seller to Swan, and then from Swan to buyer
+        // transfer artifact from seller to Swan, and then from Swan to agent
         // this ensure that only approval to Swan is enough for the sellers
-        SwanAsset(_asset).transferFrom(listing.seller, address(this), 1);
-        SwanAsset(_asset).transferFrom(address(this), listing.buyer, 1);
+        Artifact(_artifact).transferFrom(listing.seller, address(this), 1);
+        Artifact(_artifact).transferFrom(address(this), listing.agent, 1);
 
         // transfer money
-        token.transferFrom(listing.buyer, address(this), listing.price);
+        token.transferFrom(listing.agent, address(this), listing.price);
         token.transfer(listing.seller, listing.price);
 
-        emit AssetSold(listing.seller, msg.sender, _asset, listing.price);
+        emit ArtifactSold(listing.seller, msg.sender, _artifact, listing.price);
     }
 
-    /// @notice Set the factories for Buyer Agents and Swan Assets.
+    /// @notice Set the factories for AI Agents and Artifacts.
     /// @dev Only callable by owner.
-    /// @param _buyerAgentFactory new BuyerAgentFactory address
-    /// @param _swanAssetFactory new SwanAssetFactory address
-    function setFactories(address _buyerAgentFactory, address _swanAssetFactory) external onlyOwner {
-        buyerAgentFactory = BuyerAgentFactory(_buyerAgentFactory);
-        swanAssetFactory = SwanAssetFactory(_swanAssetFactory);
+    /// @param _agentFactory new AIAgentFactory address
+    /// @param _artifactFactory new ArtifactFactory address
+    function setFactories(address _agentFactory, address _artifactFactory) external onlyOwner {
+        agentFactory = AIAgentFactory(_agentFactory);
+        artifactFactory = ArtifactFactory(_artifactFactory);
     }
 
-    /// @notice Returns the asset price with the given asset address.
-    function getListingPrice(address _asset) external view returns (uint256) {
-        return listings[_asset].price;
+    /// @notice Returns the artifact price with the given artifact address.
+    function getListingPrice(address _artifact) external view returns (uint256) {
+        return listings[_artifact].price;
     }
 
-    /// @notice Returns the number of assets with the given buyer and round.
-    function getListedAssets(address _buyer, uint256 _round) external view returns (address[] memory) {
-        return assetsPerBuyerRound[_buyer][_round];
+    /// @notice Returns the number of artifacts with the given agent and round.
+    function getListedArtifacts(address _agent, uint256 _round) external view returns (address[] memory) {
+        return artifactsPerAgentRound[_agent][_round];
     }
 
-    /// @notice Returns the asset listing with the given asset address.
-    function getListing(address _asset) external view returns (AssetListing memory) {
-        return listings[_asset];
+    /// @notice Returns the artifact listing with the given artifact address.
+    function getListing(address _artifact) external view returns (ArtifactListing memory) {
+        return listings[_artifact];
     }
 }

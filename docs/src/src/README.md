@@ -2,11 +2,11 @@
 
 # Contents
 - [mock](/src/mock)
-- [BuyerAgentFactory](BuyerAgent.sol/contract.BuyerAgentFactory.md)
-- [BuyerAgent](BuyerAgent.sol/contract.BuyerAgent.md)
+- [AIAgentFactory](AIAgent.sol/contract.AIAgentFactory.md)
+- [AIAgent](AIAgent.sol/contract.AIAgent.md)
+- [ArtifactFactory](Artifact.sol/contract.ArtifactFactory.md)
+- [Artifact](Artifact.sol/contract.Artifact.md)
 - [Swan](Swan.sol/contract.Swan.md)
 - [Swan constants](Swan.sol/constants.Swan.md)
-- [SwanAssetFactory](SwanAsset.sol/contract.SwanAssetFactory.md)
-- [SwanAsset](SwanAsset.sol/contract.SwanAsset.md)
 - [SwanMarketParameters](SwanManager.sol/struct.SwanMarketParameters.md)
 - [SwanManager](SwanManager.sol/abstract.SwanManager.md)
