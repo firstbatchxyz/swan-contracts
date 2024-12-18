@@ -8,8 +8,8 @@
     "implAddr": "0x71dEE43753227298727d78225977925012873B45"
   },
   "Swan": {
-    "proxyAddr": "0x98871ebf85184d80caba6ec681d04765efc24ae4",
-    "implAddr": "0x2fa2446dc2dcc805e1cf7d433413ca96c130ee42"
+    "proxyAddr": "0x6e1264f105438e447a580f904ee13a860653c349",
+    "implAddr": "0x83eadddc6188c68e83c39d4b767c0fe3bcc8d05e"
   },
   "SwanAgentFactory": {
     "addr": "0x0baac4a81d52da48c0987854bc68cf8ba5a63050"
