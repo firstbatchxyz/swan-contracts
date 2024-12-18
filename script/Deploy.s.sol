@@ -33,7 +33,7 @@ contract DeployLLMOracleCoordinator is Script {
     }
 }
 
-contract DeployAIAgentFactory is Script {
+contract DeploySwanAgentFactory is Script {
     HelperConfig public config;
 
     function run() external returns (address addr) {
@@ -42,7 +42,7 @@ contract DeployAIAgentFactory is Script {
     }
 }
 
-contract DeployArtifactFactory is Script {
+contract DeploySwanArtifactFactory is Script {
     HelperConfig public config;
 
     function run() external returns (address addr) {

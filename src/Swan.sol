@@ -181,7 +181,7 @@ contract Swan is SwanManager, UUPSUpgradeable {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Creates a new agent.
-    /// @dev Emits a `AIAgentCreated` event.
+    /// @dev Emits a `AgentCreated` event.
     /// @return address of the new agent.
     function createAgent(
         string calldata _name,
@@ -358,10 +358,10 @@ contract Swan is SwanManager, UUPSUpgradeable {
         emit ArtifactSold(listing.seller, msg.sender, _artifact, listing.price);
     }
 
-    /// @notice Set the factories for AI Agents and Artifacts.
+    /// @notice Set the factories for Agents and Artifacts.
     /// @dev Only callable by owner.
-    /// @param _agentFactory new AIAgentFactory address
-    /// @param _artifactFactory new ArtifactFactory address
+    /// @param _agentFactory new SwanAgentFactory address
+    /// @param _artifactFactory new SwanArtifactFactory address
     function setFactories(address _agentFactory, address _artifactFactory) external onlyOwner {
         agentFactory = SwanAgentFactory(_agentFactory);
         artifactFactory = SwanArtifactFactory(_artifactFactory);

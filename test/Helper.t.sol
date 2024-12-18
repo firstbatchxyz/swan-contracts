@@ -101,7 +101,7 @@ abstract contract Helper is Test {
         for (uint96 i = 0; i < agentOwners.length; i++) {
             agentParameters.push(
                 AgentParameters({
-                    name: string.concat("AIAgent", vm.toString(uint256(i))),
+                    name: string.concat("SwanAgent", vm.toString(uint256(i))),
                     description: "description of the AI agent",
                     feeRoyalty: feeRoyalty,
                     amountPerRound: amountPerRound
@@ -250,12 +250,12 @@ abstract contract Helper is Test {
             Vm.Log[] memory entries = vm.getRecordedLogs();
 
             // 1. OwnershipTransferred (from Ownable)
-            // 2. Approval (from AIAgent constructor to approve coordinator)
-            // 3. Approval (from AIAgent constructor to approve swan)
-            // 4. AIAgentCreated (from Swan)
+            // 2. Approval (from SwanAgent constructor to approve coordinator)
+            // 3. Approval (from SwanAgent constructor to approve swan)
+            // 4. Agent (from Swan)
             assertEq(entries.length, 4);
 
-            // get the AIAgentCreated event
+            // get the agent event
             Vm.Log memory agentCreatedEvent = entries[entries.length - 1];
 
             // Log is a struct that holds the event info:
@@ -274,7 +274,7 @@ abstract contract Helper is Test {
 
             // get event sig
             bytes32 eventSig = agentCreatedEvent.topics[0];
-            assertEq(keccak256("AIAgentCreated(address,address)"), eventSig);
+            assertEq(keccak256("AgentCreated(address,address)"), eventSig);
 
             // decode owner & agent address from topics
             address _owner = abi.decode(abi.encode(agentCreatedEvent.topics[1]), (address));
@@ -287,7 +287,7 @@ abstract contract Helper is Test {
             // all guuud
             agents.push(SwanAgent(_agent));
 
-            vm.label(address(agents[i]), string.concat("AIAgent#", vm.toString(i + 1)));
+            vm.label(address(agents[i]), string.concat("SwanAgent#", vm.toString(i + 1)));
 
             // transfer token to agent
             token.transfer(address(AIagent), amountPerRound);
@@ -323,13 +323,13 @@ abstract contract Helper is Test {
 
         vm.expectRevert(abi.encodeWithSelector(Swan.InvalidPrice.selector, invalidPrice));
         vm.prank(seller);
-        swan.list("Artifact", "SA", "description or the swan artifact", invalidPrice, _agent);
+        swan.list("SwanArtifact", "SA", "description or the swan artifact", invalidPrice, _agent);
 
         vm.recordLogs();
         for (uint256 i = 0; i < artifactCount; i++) {
             vm.prank(seller);
             swan.list(
-                string.concat("Artifact#", vm.toString(i)),
+                string.concat("SwanArtifact#", vm.toString(i)),
                 string.concat("SA#", vm.toString(i)),
                 "description or the swan artifact",
                 artifactPrice,

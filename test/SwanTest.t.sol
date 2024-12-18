@@ -56,7 +56,7 @@ contract SwanTest is Helper {
         assertEq(swan.owner(), _newOwner);
     }
 
-    function test_CreateAIAgents() external createAgents fund {
+    function test_CreateSwanAgents() external createAgents fund {
         assertEq(agents.length, agentOwners.length);
 
         for (uint256 i = 0; i < agents.length; i++) {

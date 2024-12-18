@@ -125,7 +125,7 @@ contract SwanFuzzTest is Helper {
         uint256 _currTimestamp = block.timestamp;
 
         // increase time to buy phase of the second round but round comes +1 because of the setMarketParameters call
-        // AIAgents[0] should be in buy phase of second round
+        // agents[0] should be in buy phase of second round
         increaseTime(
             _currTimestamp + (2 * swan.getCurrentMarketParameters().listingInterval)
                 + swan.getCurrentMarketParameters().buyInterval + swan.getCurrentMarketParameters().withdrawInterval,
@@ -164,7 +164,7 @@ contract SwanFuzzTest is Helper {
         _allParams = swan.getMarketParameters();
         assertEq(_allParams.length, 3);
 
-        // AIAgents[0] should be in listing phase of the fourth round (2 more increase time + 2 for setting new params)
+        // agents[0] should be in listing phase of the fourth round (2 more increase time + 2 for setting new params)
         checkRoundAndPhase(agents[0], SwanAgent.Phase.Listing, 3);
 
         // agentAfterFirstSet should be in listing phase of the second round

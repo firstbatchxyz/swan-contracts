@@ -20,7 +20,7 @@ contract SwanAgentFactory {
     }
 }
 
-/// @notice AIAgent is responsible for buying the artifacts from Swan.
+/// @notice Agent is responsible for buying the artifacts from Swan.
 contract SwanAgent is Ownable {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -131,7 +131,7 @@ contract SwanAgent is Ownable {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Creates an agent.
-    /// @dev `_feeRoyalty` should be between 1 and maxAIAgentFee in the swan market parameters.
+    /// @dev `_feeRoyalty` should be between 1 and max agent fee in the swan market parameters.
     /// @dev All tokens are approved to the oracle coordinator of operator.
     constructor(
         string memory _name,
