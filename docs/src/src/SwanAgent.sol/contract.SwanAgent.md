@@ -1,5 +1,5 @@
 # SwanAgent
-[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/24e0365940f0434545a9c39573dfdf6b9975fc88/src/SwanAgent.sol)
+[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/d9d9060075900e963ed93f2465a5d30c142fcc35/src/SwanAgent.sol)
 
 **Inherits:**
 Ownable
@@ -66,12 +66,14 @@ bytes public state;
 ```
 
 
-### feeRoyalty
-Royalty fees for the agent.
+### listingFee
+Listing fee percentage for the agent.
+
+*For each listing of X$, the agent will get X * (listingFee / 100).*
 
 
 ```solidity
-uint96 public feeRoyalty;
+uint96 public listingFee;
 ```
 
 
@@ -155,7 +157,7 @@ modifier onlyAuthorized();
 
 Creates an agent.
 
-*`_feeRoyalty` should be between 1 and max agent fee in the swan market parameters.*
+*`_listingFee` should be between 1 and max agent fee in the swan market parameters.*
 
 *All tokens are approved to the oracle coordinator of operator.*
 
@@ -164,7 +166,7 @@ Creates an agent.
 constructor(
     string memory _name,
     string memory _description,
-    uint96 _feeRoyalty,
+    uint96 _listingFee,
     uint256 _amountPerRound,
     address _operator,
     address _owner
@@ -243,7 +245,7 @@ function oraclePurchaseRequest(bytes calldata _input, bytes calldata _models) ex
 
 ### updateState
 
-Function to update the AI agent state.
+Function to update the agent state.
 
 *Works only in `Withdraw` phase.*
 
@@ -290,7 +292,7 @@ function withdraw(uint96 _amount) public onlyAuthorized;
 
 ### treasury
 
-Alias to get the token balance of AI agent.
+Alias to get the token balance of agent.
 
 
 ```solidity
@@ -374,9 +376,9 @@ Function to return the current round, elapsed round and the current phase accord
 
 *Each round is composed of three phases in order: Listing, Buy, Withdraw.*
 
-*Internally, it computes the intervals from market parameters at the creation of this AI agent, until now.*
+*Internally, it computes the intervals from market parameters at the creation of this agent, until now.*
 
-*If there are many parameter changes throughout the life of this AI agent, this may cost more GAS.*
+*If there are many parameter changes throughout the life of this agent, this may cost more GAS.*
 
 
 ```solidity
@@ -391,9 +393,9 @@ function getRoundPhase() public view returns (uint256, Phase, uint256);
 |`<none>`|`uint256`||
 
 
-### setFeeRoyalty
+### setListingFee
 
-Function to set feeRoyalty.
+Function to set listingFee.
 
 *Only callable by the owner.*
 
@@ -401,13 +403,13 @@ Function to set feeRoyalty.
 
 
 ```solidity
-function setFeeRoyalty(uint96 newFeeRoyalty) public onlyOwner;
+function setListingFee(uint96 newListingFee) public onlyOwner;
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`newFeeRoyalty`|`uint96`|must be between 1 and 100.|
+|`newListingFee`|`uint96`|must be between 1 and 100.|
 
 
 ### setAmountPerRound

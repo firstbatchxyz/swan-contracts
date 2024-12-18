@@ -60,7 +60,7 @@ contract SwanTest is Helper {
         assertEq(agents.length, agentOwners.length);
 
         for (uint256 i = 0; i < agents.length; i++) {
-            assertEq(agents[i].feeRoyalty(), agentParameters[i].feeRoyalty);
+            assertEq(agents[i].listingFee(), agentParameters[i].listingFee);
             assertEq(agents[i].owner(), agentOwners[i]);
             assertEq(agents[i].amountPerRound(), agentParameters[i].amountPerRound);
             assertEq(agents[i].name(), agentParameters[i].name);
@@ -325,15 +325,15 @@ contract SwanTest is Helper {
         assertEq(agent.amountPerRound(), _newAmountPerRound);
     }
 
-    /// @notice Agent Owner cannot create agent with invalid royalty
-    /// @dev feeRoyalty must be between 0 - 100
-    function test_RevertWhen_CreateAgentWithInvalidRoyalty() external fund {
-        uint96 _invalidRoyalty = 150;
+    /// @notice Agent Owner cannot create agent with invalid listing fee
+    /// @dev listingFee must be between 0 - 100
+    function test_RevertWhen_CreateAgentWithInvalidListingFee() external fund {
+        uint96 invalidFee = 150;
 
         vm.prank(agentOwners[0]);
-        vm.expectRevert(abi.encodeWithSelector(SwanAgent.InvalidFee.selector, _invalidRoyalty));
+        vm.expectRevert(abi.encodeWithSelector(SwanAgent.InvalidFee.selector, invalidFee));
         swan.createAgent(
-            agentParameters[0].name, agentParameters[0].description, _invalidRoyalty, agentParameters[0].amountPerRound
+            agentParameters[0].name, agentParameters[0].description, invalidFee, agentParameters[0].amountPerRound
         );
     }
 

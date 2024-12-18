@@ -1,5 +1,5 @@
 # Swan
-[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/24e0365940f0434545a9c39573dfdf6b9975fc88/src/Swan.sol)
+[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/d9d9060075900e963ed93f2465a5d30c142fcc35/src/Swan.sol)
 
 **Inherits:**
 [SwanManager](/src/SwanManager.sol/abstract.SwanManager.md), UUPSUpgradeable
@@ -115,7 +115,7 @@ Creates a new agent.
 
 
 ```solidity
-function createAgent(string calldata _name, string calldata _description, uint96 _feeRoyalty, uint256 _amountPerRound)
+function createAgent(string calldata _name, string calldata _description, uint96 _listingFee, uint256 _amountPerRound)
     external
     returns (SwanAgent);
 ```
@@ -163,13 +163,13 @@ function relist(address _artifact, address _agent, uint256 _price) external;
 |`_price`|`uint256`|new price of the token.|
 
 
-### transferRoyalties
+### transferListingFees
 
-Function to transfer the royalties to the seller & Dria.
+Function to transfer the fees to the seller & Dria.
 
 
 ```solidity
-function transferRoyalties(ArtifactListing storage _artifact) internal;
+function transferListingFees(ArtifactListing storage _artifact) internal;
 ```
 
 ### purchase
@@ -317,7 +317,7 @@ Holds the listing information.
 
 *`createdAt` is the timestamp of the artifact creation.*
 
-*`feeRoyalty` is the royalty fee of the agent.*
+*`listingFee` is the listing fee of the agent.*
 
 *`price` is the price of the artifact.*
 
@@ -333,7 +333,7 @@ Holds the listing information.
 ```solidity
 struct ArtifactListing {
     uint256 createdAt;
-    uint96 feeRoyalty;
+    uint96 listingFee;
     uint256 price;
     address seller;
     address agent;

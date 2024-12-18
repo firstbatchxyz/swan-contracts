@@ -21,7 +21,7 @@ abstract contract Helper is Test {
     struct AgentParameters {
         string name;
         string description;
-        uint96 feeRoyalty;
+        uint96 listingFee;
         uint256 amountPerRound;
     }
 
@@ -63,7 +63,7 @@ abstract contract Helper is Test {
 
     uint256 artifactPrice = 0.01 ether;
     uint256 amountPerRound = 0.015 ether;
-    uint8 feeRoyalty = 2;
+    uint8 listingFee = 2;
 
     /// @dev Default scores for validation
     uint256[] scores = [1, 5, 70];
@@ -102,8 +102,8 @@ abstract contract Helper is Test {
             agentParameters.push(
                 AgentParameters({
                     name: string.concat("SwanAgent", vm.toString(uint256(i))),
-                    description: "description of the AI agent",
-                    feeRoyalty: feeRoyalty,
+                    description: "description of the agent",
+                    listingFee: listingFee,
                     amountPerRound: amountPerRound
                 })
             );
@@ -239,10 +239,10 @@ abstract contract Helper is Test {
             vm.recordLogs();
 
             vm.startPrank(agentOwners[i]);
-            SwanAgent AIagent = swan.createAgent(
+            SwanAgent newAgent = swan.createAgent(
                 agentParameters[i].name,
                 agentParameters[i].description,
-                agentParameters[i].feeRoyalty,
+                agentParameters[i].listingFee,
                 agentParameters[i].amountPerRound
             );
 
@@ -290,8 +290,8 @@ abstract contract Helper is Test {
             vm.label(address(agents[i]), string.concat("SwanAgent#", vm.toString(i + 1)));
 
             // transfer token to agent
-            token.transfer(address(AIagent), amountPerRound);
-            assertEq(token.balanceOf(address(AIagent)), amountPerRound);
+            token.transfer(address(newAgent), amountPerRound);
+            assertEq(token.balanceOf(address(newAgent)), amountPerRound);
             vm.stopPrank();
         }
 
@@ -342,9 +342,9 @@ abstract contract Helper is Test {
             // 3. ApprovalForAll
 
             // From transferRoyalties()
-            // 4. Transfer (WETH9: royalty transfer to Swan)
-            // 5. Transfer (WETH9: royalty transfer to AI Agent)
-            // 6. Transfer (WETH9: royalty transfer to dria)
+            // 4. Transfer (WETH9: fee transfer to Swan)
+            // 5. Transfer (WETH9: fee transfer to Agent)
+            // 6. Transfer (WETH9: fee transfer to Dria)
 
             // From Swan
             // 7. ArtifactListed

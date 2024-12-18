@@ -20,13 +20,13 @@ contract SwanAgentTest is Helper {
         assertEq(uint8(_phase), uint8(currPhase));
     }
 
-    /// @dev Agent owner cannot set feeRoyalty in Listing Phase
-    function test_RevertWhen_SetRoyaltyInListingPhase() external createAgents {
+    /// @dev Agent owner cannot set listing fee during the Listing Phase
+    function test_RevertWhen_SetListingFeeInListingPhase() external createAgents {
         vm.prank(agentOwner);
         vm.expectRevert(
             abi.encodeWithSelector(SwanAgent.InvalidPhase.selector, SwanAgent.Phase.Listing, SwanAgent.Phase.Withdraw)
         );
-        agent.setFeeRoyalty(10);
+        agent.setListingFee(10);
     }
 
     /// @notice Test that the agent is in Buy Phase
@@ -82,9 +82,9 @@ contract SwanAgentTest is Helper {
         agent.withdraw(1 ether);
     }
 
-    /// @notice Test that the AI agent owner must set feeRoyalty between 1-100
-    /// @dev feeRoyalty can be set ONLY in Withdraw Phase by only agent owner
-    function test_RevertWhen_SetFeeWithInvalidRoyalty() external createAgents {
+    /// @notice Test that the agent owner must set listingFee between 1-100
+    /// @dev listingFee can be set ONLY in Withdraw Phase by only agent owner
+    function test_RevertWhen_SetInvalidListingFee() external createAgents {
         increaseTime(
             agent.createdAt() + marketParameters.listingInterval + marketParameters.buyInterval,
             agent,
@@ -92,20 +92,19 @@ contract SwanAgentTest is Helper {
             0
         );
 
-        uint96 _biggerRoyalty = 1000;
-        uint96 _smallerRoyalty = 0;
-
+        uint96 tooBig = 1000;
         vm.startPrank(agentOwner);
-        vm.expectRevert(abi.encodeWithSelector(SwanAgent.InvalidFee.selector, _biggerRoyalty));
-        agent.setFeeRoyalty(_biggerRoyalty);
+        vm.expectRevert(abi.encodeWithSelector(SwanAgent.InvalidFee.selector, tooBig));
+        agent.setListingFee(tooBig);
 
-        vm.expectRevert(abi.encodeWithSelector(SwanAgent.InvalidFee.selector, _smallerRoyalty));
-        agent.setFeeRoyalty(_smallerRoyalty);
+        uint96 tooSmall = 0;
+        vm.expectRevert(abi.encodeWithSelector(SwanAgent.InvalidFee.selector, tooSmall));
+        agent.setListingFee(tooSmall);
         vm.stopPrank();
     }
 
-    /// @notice Test that the AI agent owner can set feeRoyalty and amountPerRound in Withdraw Phase
-    function test_SetRoyaltyAndAmountPerRound() external createAgents {
+    /// @notice Agent owner should set listingFee and amountPerRound in Withdraw Phase
+    function test_SetListingFeeAndAmountPerRound() external createAgents {
         increaseTime(
             agent.createdAt() + marketParameters.listingInterval + marketParameters.buyInterval,
             agent,
@@ -113,15 +112,15 @@ contract SwanAgentTest is Helper {
             0
         );
 
-        uint96 _newFeeRoyalty = 20;
+        uint96 _newListingFee = 20;
         uint256 _newAmountPerRound = 0.25 ether;
 
         vm.startPrank(agentOwner);
-        agent.setFeeRoyalty(_newFeeRoyalty);
+        agent.setListingFee(_newListingFee);
         agent.setAmountPerRound(_newAmountPerRound);
         vm.stopPrank();
 
-        assertEq(agent.feeRoyalty(), _newFeeRoyalty);
+        assertEq(agent.listingFee(), _newListingFee);
         assertEq(agent.amountPerRound(), _newAmountPerRound);
     }
 

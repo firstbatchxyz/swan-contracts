@@ -12,11 +12,11 @@ contract SwanAgentFactory {
     function deploy(
         string memory _name,
         string memory _description,
-        uint96 _feeRoyalty,
+        uint96 _listingFee,
         uint256 _amountPerRound,
         address _owner
     ) external returns (SwanAgent) {
-        return new SwanAgent(_name, _description, _feeRoyalty, _amountPerRound, msg.sender, _owner);
+        return new SwanAgent(_name, _description, _listingFee, _amountPerRound, msg.sender, _owner);
     }
 }
 
@@ -90,8 +90,9 @@ contract SwanAgent is Ownable {
     /// @notice State of the agent.
     /// @dev Only updated by the oracle via `updateState`.
     bytes public state;
-    /// @notice Royalty fees for the agent.
-    uint96 public feeRoyalty;
+    /// @notice Listing fee percentage for the agent.
+    /// @dev For each listing of X$, the agent will get X * (listingFee / 100).
+    uint96 public listingFee;
     /// @notice The max amount of money the agent can spend per round.
     uint256 public amountPerRound;
 
@@ -131,23 +132,23 @@ contract SwanAgent is Ownable {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Creates an agent.
-    /// @dev `_feeRoyalty` should be between 1 and max agent fee in the swan market parameters.
+    /// @dev `_listingFee` should be between 1 and max agent fee in the swan market parameters.
     /// @dev All tokens are approved to the oracle coordinator of operator.
     constructor(
         string memory _name,
         string memory _description,
-        uint96 _feeRoyalty,
+        uint96 _listingFee,
         uint256 _amountPerRound,
         address _operator,
         address _owner
     ) Ownable(_owner) {
         swan = Swan(_operator);
 
-        if (_feeRoyalty < 1 || _feeRoyalty > swan.getCurrentMarketParameters().maxAgentFee) {
-            revert InvalidFee(_feeRoyalty);
+        if (_listingFee < 1 || _listingFee > swan.getCurrentMarketParameters().maxAgentFee) {
+            revert InvalidFee(_listingFee);
         }
 
-        feeRoyalty = _feeRoyalty;
+        listingFee = _listingFee;
         amountPerRound = _amountPerRound;
         name = _name;
         description = _description;
@@ -215,7 +216,7 @@ contract SwanAgent is Ownable {
         emit PurchaseRequest(oraclePurchaseRequests[round], round);
     }
 
-    /// @notice Function to update the AI agent state.
+    /// @notice Function to update the agent state.
     /// @dev Works only in `Withdraw` phase.
     /// @dev Can be called multiple times within a single round, although is not expected to be done so.
     function updateState() external onlyAuthorized {
@@ -297,11 +298,11 @@ contract SwanAgent is Ownable {
             }
         }
 
-        // transfer the tokens to the owner of AI agent
+        // transfer the tokens to the owner of agent
         swan.token().transfer(owner(), _amount);
     }
 
-    /// @notice Alias to get the token balance of AI agent.
+    /// @notice Alias to get the token balance of agent.
     /// @return token balance
     function treasury() public view returns (uint256) {
         return swan.token().balanceOf(address(this));
@@ -353,8 +354,8 @@ contract SwanAgent is Ownable {
 
     /// @notice Function to return the current round, elapsed round and the current phase according to the current time.
     /// @dev Each round is composed of three phases in order: Listing, Buy, Withdraw.
-    /// @dev Internally, it computes the intervals from market parameters at the creation of this AI agent, until now.
-    /// @dev If there are many parameter changes throughout the life of this AI agent, this may cost more GAS.
+    /// @dev Internally, it computes the intervals from market parameters at the creation of this agent, until now.
+    /// @dev If there are many parameter changes throughout the life of this agent, this may cost more GAS.
     /// @return round, phase, time until next phase
     function getRoundPhase() public view returns (uint256, Phase, uint256) {
         SwanMarketParameters[] memory marketParams = swan.getMarketParameters();
@@ -397,17 +398,17 @@ contract SwanAgent is Ownable {
         }
     }
 
-    /// @notice Function to set feeRoyalty.
+    /// @notice Function to set listingFee.
     /// @dev Only callable by the owner.
     /// @dev Only callable in withdraw phase.
-    /// @param newFeeRoyalty must be between 1 and 100.
-    function setFeeRoyalty(uint96 newFeeRoyalty) public onlyOwner {
+    /// @param newListingFee must be between 1 and 100.
+    function setListingFee(uint96 newListingFee) public onlyOwner {
         _checkRoundPhase(Phase.Withdraw);
 
-        if (newFeeRoyalty < 1 || newFeeRoyalty >= 100) {
-            revert InvalidFee(newFeeRoyalty);
+        if (newListingFee < 1 || newListingFee >= 100) {
+            revert InvalidFee(newListingFee);
         }
-        feeRoyalty = newFeeRoyalty;
+        listingFee = newListingFee;
     }
 
     /// @notice Function to set the amountPerRound.

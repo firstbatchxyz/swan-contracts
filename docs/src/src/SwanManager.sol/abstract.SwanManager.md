@@ -1,5 +1,5 @@
 # SwanManager
-[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/24e0365940f0434545a9c39573dfdf6b9975fc88/src/SwanManager.sol)
+[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/d9d9060075900e963ed93f2465a5d30c142fcc35/src/SwanManager.sol)
 
 **Inherits:**
 OwnableUpgradeable
@@ -43,7 +43,7 @@ ERC20 public token;
 
 
 ### isOperator
-Operator addresses that can take actions on behalf of AI agents,
+Operator addresses that can take actions on behalf of agents,
 such as calling `purchase`, or `updateState` for them.
 
 
@@ -132,7 +132,7 @@ function getOracleFee() external view returns (uint256);
 
 ### addOperator
 
-Adds an operator that can take actions on behalf of AI agents.
+Adds an operator that can take actions on behalf of agents.
 
 *Only callable by owner.*
 

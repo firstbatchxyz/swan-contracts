@@ -81,7 +81,7 @@ contract Swan is SwanManager, UUPSUpgradeable {
 
     /// @notice Holds the listing information.
     /// @dev `createdAt` is the timestamp of the artifact creation.
-    /// @dev `feeRoyalty` is the royalty fee of the agent.
+    /// @dev `listingFee` is the listing fee of the agent.
     /// @dev `price` is the price of the artifact.
     /// @dev `seller` is the address of the creator of the artifact.
     /// @dev `agent` is the address of the agent.
@@ -89,7 +89,7 @@ contract Swan is SwanManager, UUPSUpgradeable {
     /// @dev `status` is the status of the artifact.
     struct ArtifactListing {
         uint256 createdAt;
-        uint96 feeRoyalty;
+        uint96 listingFee;
         uint256 price;
         address seller; // TODO: we can use artifact.owner() instead of seller
         address agent;
@@ -186,10 +186,10 @@ contract Swan is SwanManager, UUPSUpgradeable {
     function createAgent(
         string calldata _name,
         string calldata _description,
-        uint96 _feeRoyalty,
+        uint96 _listingFee,
         uint256 _amountPerRound
     ) external returns (SwanAgent) {
-        SwanAgent agent = agentFactory.deploy(_name, _description, _feeRoyalty, _amountPerRound, msg.sender);
+        SwanAgent agent = agentFactory.deploy(_name, _description, _listingFee, _amountPerRound, msg.sender);
         emit AgentCreated(msg.sender, address(agent));
 
         return agent;
@@ -224,7 +224,7 @@ contract Swan is SwanManager, UUPSUpgradeable {
         address artifact = address(artifactFactory.deploy(_name, _symbol, _desc, msg.sender));
         listings[artifact] = ArtifactListing({
             createdAt: block.timestamp,
-            feeRoyalty: agent.feeRoyalty(),
+            listingFee: agent.listingFee(),
             price: _price,
             seller: msg.sender,
             status: ArtifactStatus.Listed,
@@ -236,7 +236,7 @@ contract Swan is SwanManager, UUPSUpgradeable {
         artifactsPerAgentRound[_agent][round].push(artifact);
 
         // transfer royalties
-        transferRoyalties(listings[artifact]);
+        transferListingFees(listings[artifact]);
 
         emit ArtifactListed(msg.sender, artifact, _price);
     }
@@ -293,7 +293,7 @@ contract Swan is SwanManager, UUPSUpgradeable {
         // create listing
         listings[_artifact] = ArtifactListing({
             createdAt: block.timestamp,
-            feeRoyalty: agent.feeRoyalty(),
+            listingFee: agent.listingFee(),
             price: _price,
             seller: msg.sender,
             status: ArtifactStatus.Listed,
@@ -305,15 +305,15 @@ contract Swan is SwanManager, UUPSUpgradeable {
         artifactsPerAgentRound[_agent][round].push(_artifact);
 
         // transfer royalties
-        transferRoyalties(listings[_artifact]);
+        transferListingFees(listings[_artifact]);
 
         emit ArtifactRelisted(msg.sender, _agent, _artifact, _price);
     }
 
-    /// @notice Function to transfer the royalties to the seller & Dria.
-    function transferRoyalties(ArtifactListing storage _artifact) internal {
+    /// @notice Function to transfer the fees to the seller & Dria.
+    function transferListingFees(ArtifactListing storage _artifact) internal {
         // calculate fees
-        uint256 totalFee = Math.mulDiv(_artifact.price, (_artifact.feeRoyalty * 100), BASIS_POINTS);
+        uint256 totalFee = Math.mulDiv(_artifact.price, (_artifact.listingFee * 100), BASIS_POINTS);
         uint256 driaFee = Math.mulDiv(totalFee, (getCurrentMarketParameters().platformFee * 100), BASIS_POINTS);
         uint256 agentFee = totalFee - driaFee;
 

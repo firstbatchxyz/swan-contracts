@@ -1,5 +1,5 @@
 # SwanArtifact
-[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/24e0365940f0434545a9c39573dfdf6b9975fc88/src/SwanArtifact.sol)
+[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/d9d9060075900e963ed93f2465a5d30c142fcc35/src/SwanArtifact.sol)
 
 **Inherits:**
 ERC721, Ownable

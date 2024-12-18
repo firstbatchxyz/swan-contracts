@@ -139,7 +139,7 @@ contract SwanFuzzTest is Helper {
         SwanAgent _agentAfterFirstSet = swan.createAgent(
             agentParameters[1].name,
             agentParameters[1].description,
-            agentParameters[1].feeRoyalty,
+            agentParameters[1].listingFee,
             agentParameters[1].amountPerRound
         );
 
@@ -188,7 +188,7 @@ contract SwanFuzzTest is Helper {
         uint96 _agentFee,
         uint256 _amountPerRound
     ) public fund sellersApproveToSwan {
-        // Assume the price is within a reasonable range and agenta address is not zero address
+        // assume the price is within a reasonable range and agent address is not zero address
         _amountPerRound = bound(_amountPerRound, 0.1 ether, 1 ether);
         require(_amountPerRound >= 0.1 ether && _amountPerRound <= 1 ether, "Amount per round is not correctly set");
 
@@ -200,15 +200,15 @@ contract SwanFuzzTest is Helper {
             _price >= marketParameters.minArtifactPrice && _price <= _amountPerRound - 1, "Price is not correctly set"
         );
 
-        // Create a AI agent
+        // create an agent
         vm.prank(agentOwners[0]);
         SwanAgent _agent = swan.createAgent(_agentName, _agentDesc, _agentFee, _amountPerRound);
 
-        // List the artifact
+        // list the artifact
         vm.prank(sellers[0]);
         swan.list(_name, _symbol, _desc, _price, address(_agent));
 
-        // Check that the artifact is listed
+        // check that the artifact is listed
         address artifact = swan.getListedArtifacts(address(_agent), 0)[0];
         Swan.ArtifactListing memory listing = swan.getListing(artifact);
         assertEq(listing.price, _price);

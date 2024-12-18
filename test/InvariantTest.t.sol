@@ -41,11 +41,12 @@ contract InvariantTest is Helper {
         }
     }
 
-    /// @dev Fee royalty of each agent is within an acceptable range
-    function invariant_AgentFeeRoyalty() public view {
+    /// @dev Listing fee of each agent is within an acceptable range
+    function invariant_AgentListingFee() public view {
         for (uint256 i = 0; i < agents.length; i++) {
-            uint96 _feeRoyalty = agents[i].feeRoyalty();
-            assertTrue(_feeRoyalty >= 0 && _feeRoyalty <= 10000); // Assuming fee royalty is in basis points (0% to 100%)
+            uint96 fee = agents[i].listingFee();
+            // assumes listing fee is in basis points (0% to 100%)
+            assertTrue(fee >= 0 && fee <= 10000);
         }
     }
 }

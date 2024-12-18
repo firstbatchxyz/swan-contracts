@@ -46,7 +46,7 @@ abstract contract SwanManager is OwnableUpgradeable {
     /// @notice The token to be used for fee payments.
     ERC20 public token;
 
-    /// @notice Operator addresses that can take actions on behalf of AI agents,
+    /// @notice Operator addresses that can take actions on behalf of agents,
     /// such as calling `purchase`, or `updateState` for them.
     mapping(address operator => bool) public isOperator;
 
@@ -101,7 +101,7 @@ abstract contract SwanManager is OwnableUpgradeable {
                                 OPERATORS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Adds an operator that can take actions on behalf of AI agents.
+    /// @notice Adds an operator that can take actions on behalf of agents.
     /// @dev Only callable by owner.
     /// @dev Has no effect if the operator is already authorized.
     /// @param _operator new operator address
