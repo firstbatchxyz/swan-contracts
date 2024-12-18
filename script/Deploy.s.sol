@@ -7,33 +7,11 @@ import {Script} from "forge-std/Script.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
 
-import {LLMOracleRegistry} from "@firstbatch/dria-oracle-contracts/LLMOracleRegistry.sol";
-import {
-    LLMOracleCoordinator, LLMOracleTaskParameters
-} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
-import {AIAgentFactory} from "../src/AIAgent.sol";
-import {ArtifactFactory} from "../src/Artifact.sol";
+import {SwanAgentFactory} from "../src/SwanAgent.sol";
+import {SwanArtifactFactory} from "../src/SwanArtifact.sol";
 import {Swan, SwanMarketParameters} from "../src/Swan.sol";
 
-contract DeployLLMOracleRegistry is Script {
-    HelperConfig public config;
-
-    function run() external returns (address proxy, address impl) {
-        config = new HelperConfig();
-        (proxy, impl) = config.deployLLMOracleRegistry();
-    }
-}
-
-contract DeployLLMOracleCoordinator is Script {
-    HelperConfig public config;
-
-    function run() external returns (address proxy, address impl) {
-        config = new HelperConfig();
-        (proxy, impl) = config.deployLLMOracleCoordinator();
-    }
-}
-
-contract DeployAIAgentFactory is Script {
+contract DeploySwanAgentFactory is Script {
     HelperConfig public config;
 
     function run() external returns (address addr) {
@@ -42,7 +20,7 @@ contract DeployAIAgentFactory is Script {
     }
 }
 
-contract DeployArtifactFactory is Script {
+contract DeploySwanArtifactFactory is Script {
     HelperConfig public config;
 
     function run() external returns (address addr) {

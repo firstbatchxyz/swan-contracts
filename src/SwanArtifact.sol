@@ -6,18 +6,18 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /// @notice Factory contract to deploy Artifact tokens.
 /// @dev This saves from contract space for Swan.
-contract ArtifactFactory {
+contract SwanArtifactFactory {
     /// @notice Deploys a new Artifact token.
     function deploy(string memory _name, string memory _symbol, bytes memory _description, address _owner)
         external
-        returns (Artifact)
+        returns (SwanArtifact)
     {
-        return new Artifact(_name, _symbol, _description, _owner, msg.sender);
+        return new SwanArtifact(_name, _symbol, _description, _owner, msg.sender);
     }
 }
 
 /// @notice Artifact is an ERC721 token with a single token supply.
-contract Artifact is ERC721, Ownable {
+contract SwanArtifact is ERC721, Ownable {
     /// @notice Creation time of the token
     uint256 public createdAt;
     /// @notice Description of the token

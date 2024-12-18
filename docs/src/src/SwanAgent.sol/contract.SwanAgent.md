@@ -1,10 +1,10 @@
-# AIAgent
-[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/c9444a397017d961972cbbff400b67d973ffe956/src/AIAgent.sol)
+# SwanAgent
+[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/24e0365940f0434545a9c39573dfdf6b9975fc88/src/SwanAgent.sol)
 
 **Inherits:**
 Ownable
 
-AIAgent is responsible for buying the artifacts from Swan.
+Agent is responsible for buying the artifacts from Swan.
 
 
 ## State Variables
@@ -38,7 +38,7 @@ uint256 public immutable marketParameterIdx;
 
 
 ### name
-AI agent name.
+Agent name.
 
 
 ```solidity
@@ -47,7 +47,7 @@ string public name;
 
 
 ### description
-AI agent description, can include backstory, behavior and objective together.
+Agent description, can include backstory, behavior and objective together.
 
 
 ```solidity
@@ -56,7 +56,7 @@ string public description;
 
 
 ### state
-State of the AI agent.
+State of the agent.
 
 *Only updated by the oracle via `updateState`.*
 
@@ -67,7 +67,7 @@ bytes public state;
 
 
 ### feeRoyalty
-Royalty fees for the AI agent.
+Royalty fees for the agent.
 
 
 ```solidity
@@ -85,7 +85,7 @@ uint256 public amountPerRound;
 
 
 ### inventory
-The artifacts that the AI agent has.
+The artifacts that the agent has.
 
 
 ```solidity
@@ -153,9 +153,9 @@ modifier onlyAuthorized();
 
 ### constructor
 
-Creates AI agent.
+Creates an agent.
 
-*`_feeRoyalty` should be between 1 and maxAIAgentFee in the swan market parameters.*
+*`_feeRoyalty` should be between 1 and max agent fee in the swan market parameters.*
 
 *All tokens are approved to the oracle coordinator of operator.*
 

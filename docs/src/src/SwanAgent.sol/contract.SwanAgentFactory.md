@@ -1,7 +1,7 @@
-# AIAgentFactory
-[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/c9444a397017d961972cbbff400b67d973ffe956/src/AIAgent.sol)
+# SwanAgentFactory
+[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/24e0365940f0434545a9c39573dfdf6b9975fc88/src/SwanAgent.sol)
 
-Factory contract to deploy AIAgent contracts.
+Factory contract to deploy Agent contracts.
 
 *This saves from contract space for Swan.*
 
@@ -17,6 +17,6 @@ function deploy(
     uint96 _feeRoyalty,
     uint256 _amountPerRound,
     address _owner
-) external returns (AIAgent);
+) external returns (SwanAgent);
 ```
 

@@ -1,5 +1,5 @@
 # Swan
-[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/feb8dd64d672a341a29a0a52b12cc56adf09c996/src/Swan.sol)
+[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/24e0365940f0434545a9c39573dfdf6b9975fc88/src/Swan.sol)
 
 **Inherits:**
 [SwanManager](/src/SwanManager.sol/abstract.SwanManager.md), UUPSUpgradeable
@@ -7,11 +7,11 @@
 
 ## State Variables
 ### agentFactory
-Factory contract to deploy AI Agents.
+Factory contract to deploy Agents.
 
 
 ```solidity
-AIAgentFactory public agentFactory;
+SwanAgentFactory public agentFactory;
 ```
 
 
@@ -20,7 +20,7 @@ Factory contract to deploy Artifact tokens.
 
 
 ```solidity
-ArtifactFactory public artifactFactory;
+SwanArtifactFactory public artifactFactory;
 ```
 
 
@@ -109,21 +109,21 @@ function transferOwnership(address newOwner) public override onlyOwner;
 
 ### createAgent
 
-Creates a new AI agent.
+Creates a new agent.
 
-*Emits a `AIAgentCreated` event.*
+*Emits a `AgentCreated` event.*
 
 
 ```solidity
 function createAgent(string calldata _name, string calldata _description, uint96 _feeRoyalty, uint256 _amountPerRound)
     external
-    returns (AIAgent);
+    returns (SwanAgent);
 ```
 **Returns**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`<none>`|`AIAgent`|address of the new AI agent.|
+|`<none>`|`SwanAgent`|address of the new agent.|
 
 
 ### list
@@ -159,7 +159,7 @@ function relist(address _artifact, address _agent, uint256 _price) external;
 |Name|Type|Description|
 |----|----|-----------|
 |`_artifact`|`address`|address of the artifact.|
-|`_agent`|`address`|new AIAgent for the artifact.|
+|`_agent`|`address`|new agent for the artifact.|
 |`_price`|`uint256`|new price of the token.|
 
 
@@ -185,7 +185,7 @@ function purchase(address _artifact) external;
 
 ### setFactories
 
-Set the factories for AI Agents and Artifacts.
+Set the factories for Agents and Artifacts.
 
 *Only callable by owner.*
 
@@ -197,8 +197,8 @@ function setFactories(address _agentFactory, address _artifactFactory) external 
 
 |Name|Type|Description|
 |----|----|-----------|
-|`_agentFactory`|`address`|new AIAgentFactory address|
-|`_artifactFactory`|`address`|new ArtifactFactory address|
+|`_agentFactory`|`address`|new SwanAgentFactory address|
+|`_artifactFactory`|`address`|new SwanArtifactFactory address|
 
 
 ### getListingPrice
@@ -255,16 +255,16 @@ An `agent` purchased an artifact.
 event ArtifactSold(address indexed owner, address indexed agent, address indexed artifact, uint256 price);
 ```
 
-### AIAgentCreated
-A new AI agent is created.
+### AgentCreated
+A new agent is created.
 
-*`owner` is the owner of the AI agent.*
+*`owner` is the owner of the agent.*
 
-*`agent` is the address of the AI agent.*
+*`agent` is the address of the agent.*
 
 
 ```solidity
-event AIAgentCreated(address indexed owner, address indexed agent);
+event AgentCreated(address indexed owner, address indexed agent);
 ```
 
 ## Errors
@@ -317,13 +317,13 @@ Holds the listing information.
 
 *`createdAt` is the timestamp of the artifact creation.*
 
-*`feeRoyalty` is the royalty fee of the AIAgent.*
+*`feeRoyalty` is the royalty fee of the agent.*
 
 *`price` is the price of the artifact.*
 
 *`seller` is the address of the creator of the artifact.*
 
-*`agent` is the address of the AIAgent.*
+*`agent` is the address of the agent.*
 
 *`round` is the round in which the artifact is created.*
 

@@ -11,9 +11,8 @@ import {
 
 /// @notice Collection of market-related parameters.
 /// @dev Prevents stack-too-deep.
-/// TODO: use 256-bit tight-packing here
 struct SwanMarketParameters {
-    /// @notice The interval at which the AIAgent can withdraw the funds.
+    /// @notice The interval at which the agent can withdraw the funds.
     uint256 withdrawInterval;
     /// @notice The interval at which the creators can mint artifacts.
     uint256 listingInterval;

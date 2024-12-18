@@ -21,3 +21,7 @@ storage/
 
 # Dotenv file
 .env
+.preset.sh
+
+# appleeeee
+.DS_Store

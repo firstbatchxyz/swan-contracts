@@ -2,8 +2,8 @@
 pragma solidity ^0.8.20;
 
 import {
-    DeployAIAgentFactory,
-    DeployArtifactFactory,
+    DeploySwanAgentFactory,
+    DeploySwanArtifactFactory,
     DeployLLMOracleCoordinator,
     DeployLLMOracleRegistry,
     DeploySwan
@@ -17,8 +17,8 @@ import {Swan} from "../../src/Swan.sol";
 import {Upgrades} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
 
 contract DeployTest is Test {
-    DeployAIAgentFactory deployAgentFactory;
-    DeployArtifactFactory deployArtifactFactory;
+    DeploySwanAgentFactory deployAgentFactory;
+    DeploySwanArtifactFactory deployArtifactFactory;
     DeployLLMOracleCoordinator deployLLMOracleCoordinator;
     DeployLLMOracleRegistry deployLLMOracleRegistry;
     DeploySwan deploySwan;
@@ -36,10 +36,10 @@ contract DeployTest is Test {
     address llmOracleRegistryImpl;
 
     function setUp() external {
-        deployAgentFactory = new DeployAIAgentFactory();
+        deployAgentFactory = new DeploySwanAgentFactory();
         agentFactory = deployAgentFactory.run();
 
-        deployArtifactFactory = new DeployArtifactFactory();
+        deployArtifactFactory = new DeploySwanArtifactFactory();
         artifactFactory = deployArtifactFactory.run();
 
         deployLLMOracleRegistry = new DeployLLMOracleRegistry();
