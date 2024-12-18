@@ -1,5 +1,4 @@
 #!/bin/bash
-mkdir abis
 
 cp ./out/Swan.sol/Swan.json ./abis/Swan.json
 node ./abis/parseAbi.js ./abis/Swan.json
