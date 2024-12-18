@@ -5,13 +5,13 @@ import {Upgrades} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {Test} from "forge-std/Test.sol";
 
-import {WETH9} from "./WETH9.sol";
+import {WETH9} from "./contracts/WETH9.sol";
 import {LLMOracleRegistry, LLMOracleKind} from "@firstbatch/dria-oracle-contracts/LLMOracleRegistry.sol";
 import {LLMOracleCoordinator} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
 import {SwanMarketParameters} from "../src/SwanManager.sol";
 import {LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOracleTask.sol";
-import {AIAgent, AIAgentFactory} from "../src/AIAgent.sol";
-import {ArtifactFactory} from "../src/Artifact.sol";
+import {SwanAgent, SwanAgentFactory} from "../src/SwanAgent.sol";
+import {SwanArtifactFactory} from "../src/SwanArtifact.sol";
 import {Swan} from "../src/Swan.sol";
 import {Stakes, Fees} from "../script/HelperConfig.s.sol";
 
@@ -38,7 +38,7 @@ abstract contract Helper is Test {
     address[] validators;
 
     uint256 currRound;
-    AIAgent.Phase currPhase;
+    SwanAgent.Phase currPhase;
 
     AgentParameters[] agentParameters;
     LLMOracleTaskParameters oracleParameters;
@@ -47,11 +47,11 @@ abstract contract Helper is Test {
     LLMOracleCoordinator oracleCoordinator;
     LLMOracleRegistry oracleRegistry;
 
-    AIAgentFactory agentFactory;
-    ArtifactFactory artifactFactory;
-    AIAgent[] agents;
+    SwanAgentFactory agentFactory;
+    SwanArtifactFactory artifactFactory;
+    SwanAgent[] agents;
 
-    AIAgent agent;
+    SwanAgent agent;
     address agentOwner;
 
     WETH9 token;
@@ -159,8 +159,8 @@ abstract contract Helper is Test {
         oracleCoordinator = LLMOracleCoordinator(coordinatorProxy);
 
         // deploy factory contracts
-        agentFactory = new AIAgentFactory();
-        artifactFactory = new ArtifactFactory();
+        agentFactory = new SwanAgentFactory();
+        artifactFactory = new SwanArtifactFactory();
 
         // deploy swan
         address swanProxy = Upgrades.deployUUPSProxy(
@@ -184,8 +184,8 @@ abstract contract Helper is Test {
         vm.label(address(token), "WETH");
         vm.label(address(oracleRegistry), "LLMOracleRegistry");
         vm.label(address(oracleCoordinator), "LLMOracleCoordinator");
-        vm.label(address(agentFactory), "AIAgentFactory");
-        vm.label(address(artifactFactory), "ArtifactFactory");
+        vm.label(address(agentFactory), "SwanAgentFactory");
+        vm.label(address(artifactFactory), "SwanArtifactFactory");
     }
 
     /// @notice Add validators to the whitelist.
@@ -239,7 +239,7 @@ abstract contract Helper is Test {
             vm.recordLogs();
 
             vm.startPrank(agentOwners[i]);
-            AIAgent AIagent = swan.createAgent(
+            SwanAgent AIagent = swan.createAgent(
                 agentParameters[i].name,
                 agentParameters[i].description,
                 agentParameters[i].feeRoyalty,
@@ -285,7 +285,7 @@ abstract contract Helper is Test {
             assertEq(agentCreatedEvent.emitter, address(swan));
 
             // all guuud
-            agents.push(AIAgent(_agent));
+            agents.push(SwanAgent(_agent));
 
             vm.label(address(agents[i]), string.concat("AIAgent#", vm.toString(i + 1)));
 
@@ -296,7 +296,7 @@ abstract contract Helper is Test {
         }
 
         assertEq(agents.length, agentOwners.length);
-        currPhase = AIAgent.Phase.Listing;
+        currPhase = SwanAgent.Phase.Listing;
 
         agent = agents[0];
         agentOwner = agentOwners[0];
@@ -319,7 +319,7 @@ abstract contract Helper is Test {
     /// @param artifactCount Number of artifacts that will be listed.
     /// @param _agent Agent that artifacts will be list for.
     modifier listArtifacts(address seller, uint256 artifactCount, address _agent) {
-        uint256 invalidPrice = AIAgent(_agent).amountPerRound();
+        uint256 invalidPrice = SwanAgent(_agent).amountPerRound();
 
         vm.expectRevert(abi.encodeWithSelector(Swan.InvalidPrice.selector, invalidPrice));
         vm.prank(seller);
@@ -409,6 +409,8 @@ abstract contract Helper is Test {
                 return nonce;
             }
         }
+
+        return 0; // should never reach here
     }
 
     /// @notice Makes a request to Oracle Coordinator
@@ -446,13 +448,13 @@ abstract contract Helper is Test {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Increases time in the test
-    function increaseTime(uint256 timeInseconds, AIAgent _agent, AIAgent.Phase expectedPhase, uint256 expectedRound)
+    function increaseTime(uint256 timeInseconds, SwanAgent _agent, SwanAgent.Phase expectedPhase, uint256 expectedRound)
         public
     {
         vm.warp(timeInseconds + 1);
 
         // get the current round and phase of agent
-        (uint256 _currRound, AIAgent.Phase _currPhase,) = _agent.getRoundPhase();
+        (uint256 _currRound, SwanAgent.Phase _currPhase,) = _agent.getRoundPhase();
         assertEq(uint8(_currPhase), uint8(expectedPhase));
         assertEq(uint8(_currRound), uint8(expectedRound));
     }
@@ -477,7 +479,7 @@ abstract contract Helper is Test {
     }
 
     /// @notice Makes a purchase request to Oracle Coordinator
-    function safePurchase(address _agentOwner, AIAgent _agent, uint256 taskId) public {
+    function safePurchase(address _agentOwner, SwanAgent _agent, uint256 taskId) public {
         address[] memory listedArtifacts = swan.getListedArtifacts(address(_agent), currRound);
 
         // get the listed artifacts as output
@@ -518,9 +520,9 @@ abstract contract Helper is Test {
     }
 
     /// @dev Checks if the round, phase and timeRemaining is correct
-    function checkRoundAndPhase(AIAgent _agent, AIAgent.Phase phase, uint256 round) public view returns (uint256) {
+    function checkRoundAndPhase(SwanAgent _agent, SwanAgent.Phase phase, uint256 round) public view returns (uint256) {
         // get the current round and phase of the agent
-        (uint256 _currRound, AIAgent.Phase _currPhase,) = _agent.getRoundPhase();
+        (uint256 _currRound, SwanAgent.Phase _currPhase,) = _agent.getRoundPhase();
         assertEq(uint8(_currPhase), uint8(phase));
         assertEq(uint8(_currRound), uint8(round));
 

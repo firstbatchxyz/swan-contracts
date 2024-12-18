@@ -11,8 +11,8 @@ import {LLMOracleRegistry} from "@firstbatch/dria-oracle-contracts/LLMOracleRegi
 import {
     LLMOracleCoordinator, LLMOracleTaskParameters
 } from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
-import {AIAgentFactory} from "../src/AIAgent.sol";
-import {ArtifactFactory} from "../src/Artifact.sol";
+import {SwanAgentFactory} from "../src/SwanAgent.sol";
+import {SwanArtifactFactory} from "../src/SwanArtifact.sol";
 import {Swan, SwanMarketParameters} from "../src/Swan.sol";
 
 contract DeployLLMOracleRegistry is Script {

@@ -1,5 +1,5 @@
 # ArtifactFactory
-[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/feb8dd64d672a341a29a0a52b12cc56adf09c996/src/Artifact.sol)
+[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/c9444a397017d961972cbbff400b67d973ffe956/src/Artifact.sol)
 
 Factory contract to deploy Artifact tokens.
 

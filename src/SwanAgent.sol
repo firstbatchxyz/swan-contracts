@@ -3,25 +3,25 @@ pragma solidity ^0.8.20;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOracleTask.sol";
-import {Swan, SwanAIAgentPurchaseOracleProtocol, SwanAIAgentStateOracleProtocol} from "./Swan.sol";
+import {Swan, SwanAgentPurchaseOracleProtocol, SwanAgentStateOracleProtocol} from "./Swan.sol";
 import {SwanMarketParameters} from "./SwanManager.sol";
 
-/// @notice Factory contract to deploy AIAgent contracts.
+/// @notice Factory contract to deploy Agent contracts.
 /// @dev This saves from contract space for Swan.
-contract AIAgentFactory {
+contract SwanAgentFactory {
     function deploy(
         string memory _name,
         string memory _description,
         uint96 _feeRoyalty,
         uint256 _amountPerRound,
         address _owner
-    ) external returns (AIAgent) {
-        return new AIAgent(_name, _description, _feeRoyalty, _amountPerRound, msg.sender, _owner);
+    ) external returns (SwanAgent) {
+        return new SwanAgent(_name, _description, _feeRoyalty, _amountPerRound, msg.sender, _owner);
     }
 }
 
 /// @notice AIAgent is responsible for buying the artifacts from Swan.
-contract AIAgent is Ownable {
+contract SwanAgent is Ownable {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -83,19 +83,19 @@ contract AIAgent is Ownable {
     /// @dev When calculating the round, we will use this index to determine the start interval.
     uint256 public immutable marketParameterIdx;
 
-    /// @notice AI agent name.
+    /// @notice Agent name.
     string public name;
-    /// @notice AI agent description, can include backstory, behavior and objective together.
+    /// @notice Agent description, can include backstory, behavior and objective together.
     string public description;
-    /// @notice State of the AI agent.
+    /// @notice State of the agent.
     /// @dev Only updated by the oracle via `updateState`.
     bytes public state;
-    /// @notice Royalty fees for the AI agent.
+    /// @notice Royalty fees for the agent.
     uint96 public feeRoyalty;
     /// @notice The max amount of money the agent can spend per round.
     uint256 public amountPerRound;
 
-    /// @notice The artifacts that the AI agent has.
+    /// @notice The artifacts that the agent has.
     mapping(uint256 round => address[] artifacts) public inventory;
     /// @notice Amount of money spent on each round.
     mapping(uint256 round => uint256 spending) public spendings;
@@ -130,7 +130,7 @@ contract AIAgent is Ownable {
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Creates AI agent.
+    /// @notice Creates an agent.
     /// @dev `_feeRoyalty` should be between 1 and maxAIAgentFee in the swan market parameters.
     /// @dev All tokens are approved to the oracle coordinator of operator.
     constructor(
@@ -193,7 +193,7 @@ contract AIAgent is Ownable {
         (uint256 round,) = _checkRoundPhase(Phase.Withdraw);
 
         oracleStateRequests[round] =
-            swan.coordinator().request(SwanAIAgentStateOracleProtocol, _input, _models, swan.getOracleParameters());
+            swan.coordinator().request(SwanAgentStateOracleProtocol, _input, _models, swan.getOracleParameters());
 
         emit StateRequest(oracleStateRequests[round], round);
     }
@@ -210,7 +210,7 @@ contract AIAgent is Ownable {
         (uint256 round,) = _checkRoundPhase(Phase.Buy);
 
         oraclePurchaseRequests[round] =
-            swan.coordinator().request(SwanAIAgentPurchaseOracleProtocol, _input, _models, swan.getOracleParameters());
+            swan.coordinator().request(SwanAgentPurchaseOracleProtocol, _input, _models, swan.getOracleParameters());
 
         emit PurchaseRequest(oraclePurchaseRequests[round], round);
     }

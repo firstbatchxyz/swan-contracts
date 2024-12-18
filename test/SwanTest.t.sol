@@ -5,11 +5,11 @@ import {Upgrades} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {Helper} from "./Helper.t.sol";
 
-import {AIAgent, AIAgentFactory} from "../src/AIAgent.sol";
-import {ArtifactFactory, Artifact} from "../src/Artifact.sol";
+import {SwanAgent, SwanAgentFactory} from "../src/SwanAgent.sol";
+import {SwanArtifactFactory, SwanArtifact} from "../src/SwanArtifact.sol";
 import {Swan, SwanMarketParameters} from "../src/Swan.sol";
 import {LLMOracleRegistry} from "@firstbatch/dria-oracle-contracts/LLMOracleRegistry.sol";
-import {WETH9} from "./WETH9.sol";
+import {WETH9} from "./contracts/WETH9.sol";
 import {
     LLMOracleCoordinator, LLMOracleTaskParameters
 } from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
@@ -96,7 +96,9 @@ contract SwanTest is Helper {
     {
         // try to purchase in Listing Phase
         vm.prank(agentOwners[0]);
-        vm.expectRevert(abi.encodeWithSelector(AIAgent.InvalidPhase.selector, AIAgent.Phase.Listing, AIAgent.Phase.Buy));
+        vm.expectRevert(
+            abi.encodeWithSelector(SwanAgent.InvalidPhase.selector, SwanAgent.Phase.Listing, SwanAgent.Phase.Buy)
+        );
         agents[0].purchase();
     }
 
@@ -129,10 +131,10 @@ contract SwanTest is Helper {
         listArtifacts(sellers[0], marketParameters.maxArtifactCount, address(agents[0]))
     {
         address _agentToFail = agentOwners[0];
-        AIAgent _agent = agents[1];
+        SwanAgent _agent = agents[1];
 
-        increaseTime(_agent.createdAt() + marketParameters.listingInterval, _agent, AIAgent.Phase.Buy, 0);
-        currPhase = AIAgent.Phase.Buy;
+        increaseTime(_agent.createdAt() + marketParameters.listingInterval, _agent, SwanAgent.Phase.Buy, 0);
+        currPhase = SwanAgent.Phase.Buy;
 
         vm.expectRevert(abi.encodeWithSelector(Swan.Unauthorized.selector, _agentToFail));
         vm.prank(_agentToFail);
@@ -150,9 +152,9 @@ contract SwanTest is Helper {
         listArtifacts(sellers[0], marketParameters.maxArtifactCount, address(agents[0]))
     {
         address _agentOwnerToFail = agentOwners[0];
-        AIAgent _agentToFail = agents[0];
+        SwanAgent _agentToFail = agents[0];
 
-        increaseTime(_agentToFail.createdAt() + marketParameters.listingInterval, _agentToFail, AIAgent.Phase.Buy, 0);
+        increaseTime(_agentToFail.createdAt() + marketParameters.listingInterval, _agentToFail, SwanAgent.Phase.Buy, 0);
 
         // get the listed artifacts as output
         address[] memory output = swan.getListedArtifacts(address(_agentToFail), currRound);
@@ -170,7 +172,7 @@ contract SwanTest is Helper {
         safeValidate(validators[0], 1);
 
         vm.prank(_agentOwnerToFail);
-        vm.expectRevert(abi.encodeWithSelector(AIAgent.BuyLimitExceeded.selector, artifactPrice * 2, amountPerRound));
+        vm.expectRevert(abi.encodeWithSelector(SwanAgent.BuyLimitExceeded.selector, artifactPrice * 2, amountPerRound));
         _agentToFail.purchase();
     }
 
@@ -189,7 +191,7 @@ contract SwanTest is Helper {
         listArtifacts(sellers[0], marketParameters.maxArtifactCount, address(agents[0]))
     {
         // increase time to buy phase to be able to purchase
-        increaseTime(agents[0].createdAt() + marketParameters.listingInterval, agents[0], AIAgent.Phase.Buy, 0);
+        increaseTime(agents[0].createdAt() + marketParameters.listingInterval, agents[0], SwanAgent.Phase.Buy, 0);
 
         safePurchase(agentOwners[0], agents[0], 1);
         Vm.Log[] memory entries = vm.getRecordedLogs();
@@ -199,7 +201,7 @@ contract SwanTest is Helper {
         // 3. Transfer
         // 4. Transfer
         // 5. ArtifactSold (from Swan)
-        // 6. Purchase (from AIAgent)
+        // 6. Purchase (from SwanAgent)
         assertEq(entries.length, 6);
 
         // get the ArtifactSold event
@@ -233,7 +235,7 @@ contract SwanTest is Helper {
 
         // try to purchase again
         vm.prank(agentOwners[0]);
-        vm.expectRevert(abi.encodeWithSelector(AIAgent.TaskAlreadyProcessed.selector));
+        vm.expectRevert(abi.encodeWithSelector(SwanAgent.TaskAlreadyProcessed.selector));
         agents[0].purchase();
     }
 
@@ -248,25 +250,25 @@ contract SwanTest is Helper {
         listArtifacts(sellers[0], marketParameters.maxArtifactCount, address(agents[0]))
     {
         address _agentOwner = agentOwners[0];
-        AIAgent _agent = agents[0];
+        SwanAgent _agent = agents[0];
 
         bytes memory newState = abi.encodePacked("0x", "after purchase");
         uint256 taskId = 1;
 
-        increaseTime(_agent.createdAt() + marketParameters.listingInterval, _agent, AIAgent.Phase.Buy, 0);
+        increaseTime(_agent.createdAt() + marketParameters.listingInterval, _agent, SwanAgent.Phase.Buy, 0);
         safePurchase(_agentOwner, _agent, taskId);
         taskId++;
 
         increaseTime(
             _agent.createdAt() + marketParameters.listingInterval + marketParameters.buyInterval,
             _agent,
-            AIAgent.Phase.Withdraw,
+            SwanAgent.Phase.Withdraw,
             0
         );
 
         // try to send state request by another agent owner
         vm.prank(agentOwners[1]);
-        vm.expectRevert(abi.encodeWithSelector(AIAgent.Unauthorized.selector, agentOwners[1]));
+        vm.expectRevert(abi.encodeWithSelector(SwanAgent.Unauthorized.selector, agentOwners[1]));
         _agent.oracleStateRequest(input, models);
 
         vm.prank(_agentOwner);
@@ -279,7 +281,7 @@ contract SwanTest is Helper {
 
         // try to update state by another agent owner
         vm.prank(agentOwners[1]);
-        vm.expectRevert(abi.encodeWithSelector(AIAgent.Unauthorized.selector, agentOwners[1]));
+        vm.expectRevert(abi.encodeWithSelector(SwanAgent.Unauthorized.selector, agentOwners[1]));
         _agent.updateState();
 
         vm.prank(_agentOwner);
@@ -289,32 +291,32 @@ contract SwanTest is Helper {
 
     /// @notice Seller cannot list an artifact in withdraw phase
     function test_RevertWhen_ListInWithdrawPhase() external fund createAgents sellersApproveToSwan {
-        AIAgent _agent = agents[0];
+        SwanAgent _agent = agents[0];
 
         increaseTime(
             _agent.createdAt() + marketParameters.listingInterval + marketParameters.buyInterval,
             _agent,
-            AIAgent.Phase.Withdraw,
+            SwanAgent.Phase.Withdraw,
             0
         );
-        currPhase = AIAgent.Phase.Withdraw;
+        currPhase = SwanAgent.Phase.Withdraw;
 
-        checkRoundAndPhase(_agent, AIAgent.Phase.Withdraw, 0);
+        checkRoundAndPhase(_agent, SwanAgent.Phase.Withdraw, 0);
 
         vm.prank(sellers[0]);
-        vm.expectRevert(abi.encodeWithSelector(AIAgent.InvalidPhase.selector, currPhase, AIAgent.Phase.Listing));
+        vm.expectRevert(abi.encodeWithSelector(SwanAgent.InvalidPhase.selector, currPhase, SwanAgent.Phase.Listing));
         swan.list("name", "symbol", "desc", 0.01 ether, address(_agent));
     }
 
     /// @notice Agent Owner can setAmountPerRound in withdraw phase
     function test_SetAmountPerRound() external fund createAgents sellersApproveToSwan {
-        AIAgent _agent = agents[0];
+        SwanAgent _agent = agents[0];
         uint256 _newAmountPerRound = 2 ether;
 
         increaseTime(
             _agent.createdAt() + marketParameters.listingInterval + marketParameters.buyInterval,
             _agent,
-            AIAgent.Phase.Withdraw,
+            SwanAgent.Phase.Withdraw,
             0
         );
 
@@ -329,7 +331,7 @@ contract SwanTest is Helper {
         uint96 _invalidRoyalty = 150;
 
         vm.prank(agentOwners[0]);
-        vm.expectRevert(abi.encodeWithSelector(AIAgent.InvalidFee.selector, _invalidRoyalty));
+        vm.expectRevert(abi.encodeWithSelector(SwanAgent.InvalidFee.selector, _invalidRoyalty));
         swan.createAgent(
             agentParameters[0].name, agentParameters[0].description, _invalidRoyalty, agentParameters[0].amountPerRound
         );
@@ -337,8 +339,8 @@ contract SwanTest is Helper {
 
     /// @notice Swan owner can set factories
     function test_SetFactories() external fund {
-        ArtifactFactory _artifactFactory = new ArtifactFactory();
-        AIAgentFactory _agentFactory = new AIAgentFactory();
+        SwanArtifactFactory _artifactFactory = new SwanArtifactFactory();
+        SwanAgentFactory _agentFactory = new SwanAgentFactory();
 
         vm.prank(dria);
         swan.setFactories(address(_agentFactory), address(_artifactFactory));
@@ -358,16 +360,16 @@ contract SwanTest is Helper {
         listArtifacts(sellers[0], marketParameters.maxArtifactCount, address(agents[0]))
     {
         address _agentOwner = agentOwners[0];
-        AIAgent _agent = agents[0];
+        SwanAgent _agent = agents[0];
         uint256 taskId = 1;
 
         // increase time to buy phase
-        increaseTime(_agent.createdAt() + marketParameters.listingInterval, _agent, AIAgent.Phase.Buy, 0);
+        increaseTime(_agent.createdAt() + marketParameters.listingInterval, _agent, SwanAgent.Phase.Buy, 0);
         safePurchase(_agentOwner, _agent, taskId);
 
         uint256 listingPhaseOfTheSecondRound = _agent.createdAt() + marketParameters.listingInterval
             + marketParameters.buyInterval + marketParameters.withdrawInterval;
-        increaseTime(listingPhaseOfTheSecondRound, _agent, AIAgent.Phase.Listing, 1);
+        increaseTime(listingPhaseOfTheSecondRound, _agent, SwanAgent.Phase.Listing, 1);
 
         // get artifact
         address _listedArtifactAddr = swan.getListedArtifacts(address(_agent), currRound)[0];
@@ -393,14 +395,14 @@ contract SwanTest is Helper {
         registerOracles
         listArtifacts(sellers[0], marketParameters.maxArtifactCount, address(agents[0]))
     {
-        AIAgent _agent = agents[0];
+        SwanAgent _agent = agents[0];
         address _listedArtifactAddr = swan.getListedArtifacts(address(_agent), currRound)[0];
 
         // increase time to the listing phase of the next round
         uint256 listingPhaseOfTheSecondRound = _agent.createdAt() + marketParameters.listingInterval
             + marketParameters.buyInterval + marketParameters.withdrawInterval;
 
-        increaseTime(listingPhaseOfTheSecondRound, _agent, AIAgent.Phase.Listing, 1);
+        increaseTime(listingPhaseOfTheSecondRound, _agent, SwanAgent.Phase.Listing, 1);
 
         // try to relist an artifact by another seller
         vm.prank(sellers[1]);
@@ -418,14 +420,14 @@ contract SwanTest is Helper {
         registerOracles
         listArtifacts(sellers[0], marketParameters.maxArtifactCount, address(agents[0]))
     {
-        AIAgent _agent = agents[0];
+        SwanAgent _agent = agents[0];
         address _listedArtifactAddr = swan.getListedArtifacts(address(_agent), currRound)[0];
 
         // increase time to the listing phase of the next round
         uint256 listingPhaseOfTheSecondRound = _agent.createdAt() + marketParameters.listingInterval
             + marketParameters.buyInterval + marketParameters.withdrawInterval;
 
-        increaseTime(listingPhaseOfTheSecondRound, _agent, AIAgent.Phase.Listing, 1);
+        increaseTime(listingPhaseOfTheSecondRound, _agent, SwanAgent.Phase.Listing, 1);
 
         // list maxArtifactCount artifacts
         for (uint256 i = 0; i < marketParameters.maxArtifactCount; i++) {
@@ -452,15 +454,15 @@ contract SwanTest is Helper {
         registerOracles
         listArtifacts(sellers[0], marketParameters.maxArtifactCount, address(agents[0]))
     {
-        AIAgent _agent = agents[0];
-        AIAgent _agentToRelist = agents[1];
+        SwanAgent _agent = agents[0];
+        SwanAgent _agentToRelist = agents[1];
 
         address _listedArtifactAddr = swan.getListedArtifacts(address(_agent), currRound)[0];
 
         // increase time to the listing phase of the next round
         uint256 listingPhaseOfTheSecondRound = _agent.createdAt() + marketParameters.listingInterval
             + marketParameters.buyInterval + marketParameters.withdrawInterval;
-        increaseTime(listingPhaseOfTheSecondRound, _agent, AIAgent.Phase.Listing, 1);
+        increaseTime(listingPhaseOfTheSecondRound, _agent, SwanAgent.Phase.Listing, 1);
 
         vm.prank(sellers[0]);
         vm.expectRevert(abi.encodeWithSelector(Swan.InvalidPrice.selector, 0));
@@ -506,18 +508,18 @@ contract SwanTest is Helper {
         registerOracles
         listArtifacts(sellers[0], marketParameters.maxArtifactCount, address(agents[0]))
     {
-        AIAgent _agent = agents[0];
+        SwanAgent _agent = agents[0];
         address _listedArtifactAddr = swan.getListedArtifacts(address(_agent), currRound)[0];
 
         // increase time to the buy phase of the second round
         uint256 buyPhaseOfTheSecondRound = _agent.createdAt() + marketParameters.listingInterval
             + marketParameters.buyInterval + marketParameters.withdrawInterval + marketParameters.listingInterval;
 
-        increaseTime(buyPhaseOfTheSecondRound, _agent, AIAgent.Phase.Buy, 1);
-        currPhase = AIAgent.Phase.Buy;
+        increaseTime(buyPhaseOfTheSecondRound, _agent, SwanAgent.Phase.Buy, 1);
+        currPhase = SwanAgent.Phase.Buy;
 
         // try to relist
-        vm.expectRevert(abi.encodeWithSelector(AIAgent.InvalidPhase.selector, currPhase, AIAgent.Phase.Listing));
+        vm.expectRevert(abi.encodeWithSelector(SwanAgent.InvalidPhase.selector, currPhase, SwanAgent.Phase.Listing));
         vm.prank(sellers[0]);
         swan.relist(_listedArtifactAddr, address(_agent), artifactPrice);
     }
@@ -532,18 +534,18 @@ contract SwanTest is Helper {
         registerOracles
         listArtifacts(sellers[0], marketParameters.maxArtifactCount, address(agents[0]))
     {
-        AIAgent _agent = agents[0];
+        SwanAgent _agent = agents[0];
         address _listedArtifactAddr = swan.getListedArtifacts(address(_agent), currRound)[0];
 
         // increase time to the withdraw phase of the second round
         uint256 withdrawPhaseOfSecondRound = (2 * marketParameters.listingInterval) + (2 * marketParameters.buyInterval)
             + marketParameters.withdrawInterval + _agent.createdAt();
 
-        increaseTime(withdrawPhaseOfSecondRound, _agent, AIAgent.Phase.Withdraw, 1);
-        currPhase = AIAgent.Phase.Withdraw;
+        increaseTime(withdrawPhaseOfSecondRound, _agent, SwanAgent.Phase.Withdraw, 1);
+        currPhase = SwanAgent.Phase.Withdraw;
 
         // try to relist
-        vm.expectRevert(abi.encodeWithSelector(AIAgent.InvalidPhase.selector, currPhase, AIAgent.Phase.Listing));
+        vm.expectRevert(abi.encodeWithSelector(SwanAgent.InvalidPhase.selector, currPhase, SwanAgent.Phase.Listing));
         vm.prank(sellers[0]);
         swan.relist(_listedArtifactAddr, address(_agent), artifactPrice);
     }
@@ -573,7 +575,7 @@ contract SwanTest is Helper {
         increaseTime(
             agents[0].createdAt() + marketParameters.listingInterval + marketParameters.buyInterval,
             agents[0],
-            AIAgent.Phase.Withdraw,
+            SwanAgent.Phase.Withdraw,
             0
         );
 
@@ -607,7 +609,7 @@ contract SwanTest is Helper {
         increaseTime(
             agents[0].createdAt() + marketParameters.listingInterval + marketParameters.buyInterval,
             agents[0],
-            AIAgent.Phase.Withdraw,
+            SwanAgent.Phase.Withdraw,
             0
         );
 

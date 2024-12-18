@@ -5,19 +5,18 @@ import {Upgrades} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {Helper} from "./Helper.t.sol";
 
-import {WETH9} from "./WETH9.sol";
-import {AIAgent, AIAgentFactory} from "../src/AIAgent.sol";
+import {WETH9} from "./contracts/WETH9.sol";
+import {SwanAgent} from "../src/SwanAgent.sol";
 import {LLMOracleCoordinator} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
-import {ArtifactFactory} from "../src/Artifact.sol";
 import {LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOracleTask.sol";
 import {LLMOracleRegistry} from "@firstbatch/dria-oracle-contracts/LLMOracleRegistry.sol";
 import {Swan} from "../src/Swan.sol";
 
-contract AIAgentTest is Helper {
-    /// @notice AI agent should be in Listing Phase
+contract SwanAgentTest is Helper {
+    /// @notice Agent should be in Listing Phase
     function test_InListingPhase() external createAgents {
         // get curr phase
-        (, AIAgent.Phase _phase,) = agent.getRoundPhase();
+        (, SwanAgent.Phase _phase,) = agent.getRoundPhase();
         assertEq(uint8(_phase), uint8(currPhase));
     }
 
@@ -25,7 +24,7 @@ contract AIAgentTest is Helper {
     function test_RevertWhen_SetRoyaltyInListingPhase() external createAgents {
         vm.prank(agentOwner);
         vm.expectRevert(
-            abi.encodeWithSelector(AIAgent.InvalidPhase.selector, AIAgent.Phase.Listing, AIAgent.Phase.Withdraw)
+            abi.encodeWithSelector(SwanAgent.InvalidPhase.selector, SwanAgent.Phase.Listing, SwanAgent.Phase.Withdraw)
         );
         agent.setFeeRoyalty(10);
     }
@@ -33,21 +32,21 @@ contract AIAgentTest is Helper {
     /// @notice Test that the agent is in Buy Phase
     function test_InBuyPhase() external createAgents {
         uint256 _timeToBuyPhaseOfTheFirstRound = agent.createdAt() + swan.getCurrentMarketParameters().listingInterval;
-        increaseTime(_timeToBuyPhaseOfTheFirstRound, agent, AIAgent.Phase.Buy, 0);
+        increaseTime(_timeToBuyPhaseOfTheFirstRound, agent, SwanAgent.Phase.Buy, 0);
 
-        currPhase = AIAgent.Phase.Buy;
+        currPhase = SwanAgent.Phase.Buy;
 
-        (, AIAgent.Phase _phase,) = agent.getRoundPhase();
+        (, SwanAgent.Phase _phase,) = agent.getRoundPhase();
         assertEq(uint8(_phase), uint8(currPhase));
     }
 
     /// @dev Agent owner cannot set amountPerRound in Buy Phase
     function test_RevertWhen_SetAmountPerRoundInBuyPhase() external createAgents {
-        increaseTime(agent.createdAt() + marketParameters.listingInterval, agent, AIAgent.Phase.Buy, 0);
+        increaseTime(agent.createdAt() + marketParameters.listingInterval, agent, SwanAgent.Phase.Buy, 0);
 
         vm.prank(agentOwner);
         vm.expectRevert(
-            abi.encodeWithSelector(AIAgent.InvalidPhase.selector, AIAgent.Phase.Buy, AIAgent.Phase.Withdraw)
+            abi.encodeWithSelector(SwanAgent.InvalidPhase.selector, SwanAgent.Phase.Buy, SwanAgent.Phase.Withdraw)
         );
         agent.setAmountPerRound(2 ether);
     }
@@ -55,14 +54,14 @@ contract AIAgentTest is Helper {
     /// @notice Test that the agent owner cannot withdraw in Buy Phase
     function test_RevertWhen_WithdrawInBuyPhase() external createAgents {
         // owner cannot withdraw more than minFundAmount from his agent
-        increaseTime(agent.createdAt() + marketParameters.listingInterval, agent, AIAgent.Phase.Buy, 0);
+        increaseTime(agent.createdAt() + marketParameters.listingInterval, agent, SwanAgent.Phase.Buy, 0);
 
         // get the contract balance
         uint256 treasuary = agent.treasury();
 
         vm.prank(agentOwner);
         // try to withdraw all balance
-        vm.expectRevert(abi.encodeWithSelector(AIAgent.MinFundSubceeded.selector, treasuary));
+        vm.expectRevert(abi.encodeWithSelector(SwanAgent.MinFundSubceeded.selector, treasuary));
         agent.withdraw(uint96(treasuary));
     }
 
@@ -71,15 +70,15 @@ contract AIAgentTest is Helper {
         increaseTime(
             agent.createdAt() + marketParameters.listingInterval + marketParameters.buyInterval,
             agent,
-            AIAgent.Phase.Withdraw,
+            SwanAgent.Phase.Withdraw,
             0
         );
 
-        currPhase = AIAgent.Phase.Withdraw;
+        currPhase = SwanAgent.Phase.Withdraw;
 
         // not allowed to withdraw by non owner
         vm.prank(agentOwners[1]);
-        vm.expectRevert(abi.encodeWithSelector(AIAgent.Unauthorized.selector, agentOwners[1]));
+        vm.expectRevert(abi.encodeWithSelector(SwanAgent.Unauthorized.selector, agentOwners[1]));
         agent.withdraw(1 ether);
     }
 
@@ -89,7 +88,7 @@ contract AIAgentTest is Helper {
         increaseTime(
             agent.createdAt() + marketParameters.listingInterval + marketParameters.buyInterval,
             agent,
-            AIAgent.Phase.Withdraw,
+            SwanAgent.Phase.Withdraw,
             0
         );
 
@@ -97,10 +96,10 @@ contract AIAgentTest is Helper {
         uint96 _smallerRoyalty = 0;
 
         vm.startPrank(agentOwner);
-        vm.expectRevert(abi.encodeWithSelector(AIAgent.InvalidFee.selector, _biggerRoyalty));
+        vm.expectRevert(abi.encodeWithSelector(SwanAgent.InvalidFee.selector, _biggerRoyalty));
         agent.setFeeRoyalty(_biggerRoyalty);
 
-        vm.expectRevert(abi.encodeWithSelector(AIAgent.InvalidFee.selector, _smallerRoyalty));
+        vm.expectRevert(abi.encodeWithSelector(SwanAgent.InvalidFee.selector, _smallerRoyalty));
         agent.setFeeRoyalty(_smallerRoyalty);
         vm.stopPrank();
     }
@@ -110,7 +109,7 @@ contract AIAgentTest is Helper {
         increaseTime(
             agent.createdAt() + marketParameters.listingInterval + marketParameters.buyInterval,
             agent,
-            AIAgent.Phase.Withdraw,
+            SwanAgent.Phase.Withdraw,
             0
         );
 
@@ -126,12 +125,12 @@ contract AIAgentTest is Helper {
         assertEq(agent.amountPerRound(), _newAmountPerRound);
     }
 
-    /// @notice Test that the AI agent owner can withdraw in Withdraw Phase
+    /// @notice Test that the agent owner can withdraw in Withdraw Phase
     function test_WithdrawInWithdrawPhase() external createAgents {
         increaseTime(
             agent.createdAt() + marketParameters.listingInterval + marketParameters.buyInterval,
             agent,
-            AIAgent.Phase.Withdraw,
+            SwanAgent.Phase.Withdraw,
             0
         );
 

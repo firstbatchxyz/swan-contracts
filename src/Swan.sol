@@ -7,16 +7,17 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeab
 import {
     LLMOracleCoordinator, LLMOracleTaskParameters
 } from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
-import {AIAgentFactory, AIAgent} from "./AIAgent.sol";
-import {ArtifactFactory, Artifact} from "./Artifact.sol";
+import {SwanAgentFactory, SwanAgent} from "./SwanAgent.sol";
+import {SwanArtifactFactory, SwanArtifact} from "./SwanArtifact.sol";
 import {SwanManager, SwanMarketParameters} from "./SwanManager.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-// @dev Protocol strings for Swan, checked in the Oracle.
-bytes32 constant SwanAIAgentPurchaseOracleProtocol = "swan-agent-purchase/0.1.0";
-bytes32 constant SwanAIAgentStateOracleProtocol = "swan-agent-state/0.1.0";
+/// @dev Protocol string for Swan Purchase CRONs, checked in the Oracle.
+bytes32 constant SwanAgentPurchaseOracleProtocol = "swan-agent-purchase/0.1.0";
+/// @dev Protocol string for Swan State CRONs, checked in the Oracle.
+bytes32 constant SwanAgentStateOracleProtocol = "swan-agent-state/0.1.0";
 
-/// @dev Used to calculate the fee for the AI agent to be able to compute correct amount.
+/// @dev Used to calculate the fee for the agent to be able to compute correct amount.
 uint256 constant BASIS_POINTS = 10_000;
 
 contract Swan is SwanManager, UUPSUpgradeable {
@@ -56,10 +57,10 @@ contract Swan is SwanManager, UUPSUpgradeable {
     /// @notice An `agent` purchased an artifact.
     event ArtifactSold(address indexed owner, address indexed agent, address indexed artifact, uint256 price);
 
-    /// @notice A new AI agent is created.
-    /// @dev `owner` is the owner of the AI agent.
-    /// @dev `agent` is the address of the AI agent.
-    event AIAgentCreated(address indexed owner, address indexed agent);
+    /// @notice A new agent is created.
+    /// @dev `owner` is the owner of the agent.
+    /// @dev `agent` is the address of the agent.
+    event AgentCreated(address indexed owner, address indexed agent);
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -80,10 +81,10 @@ contract Swan is SwanManager, UUPSUpgradeable {
 
     /// @notice Holds the listing information.
     /// @dev `createdAt` is the timestamp of the artifact creation.
-    /// @dev `feeRoyalty` is the royalty fee of the AIAgent.
+    /// @dev `feeRoyalty` is the royalty fee of the agent.
     /// @dev `price` is the price of the artifact.
     /// @dev `seller` is the address of the creator of the artifact.
-    /// @dev `agent` is the address of the AIAgent.
+    /// @dev `agent` is the address of the agent.
     /// @dev `round` is the round in which the artifact is created.
     /// @dev `status` is the status of the artifact.
     struct ArtifactListing {
@@ -96,10 +97,10 @@ contract Swan is SwanManager, UUPSUpgradeable {
         ArtifactStatus status;
     }
 
-    /// @notice Factory contract to deploy AI Agents.
-    AIAgentFactory public agentFactory;
+    /// @notice Factory contract to deploy Agents.
+    SwanAgentFactory public agentFactory;
     /// @notice Factory contract to deploy Artifact tokens.
-    ArtifactFactory public artifactFactory;
+    SwanArtifactFactory public artifactFactory;
 
     /// @notice To keep track of the artifacts for purchase.
     mapping(address artifact => ArtifactListing) public listings;
@@ -149,8 +150,8 @@ contract Swan is SwanManager, UUPSUpgradeable {
         // contracts
         coordinator = LLMOracleCoordinator(_coordinator);
         token = ERC20(_token);
-        agentFactory = AIAgentFactory(_agentFactory);
-        artifactFactory = ArtifactFactory(_artifactFactory);
+        agentFactory = SwanAgentFactory(_agentFactory);
+        artifactFactory = SwanArtifactFactory(_artifactFactory);
 
         // swan is an operator
         isOperator[address(this)] = true;
@@ -179,17 +180,17 @@ contract Swan is SwanManager, UUPSUpgradeable {
                                   LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Creates a new AI agent.
+    /// @notice Creates a new agent.
     /// @dev Emits a `AIAgentCreated` event.
-    /// @return address of the new AI agent.
+    /// @return address of the new agent.
     function createAgent(
         string calldata _name,
         string calldata _description,
         uint96 _feeRoyalty,
         uint256 _amountPerRound
-    ) external returns (AIAgent) {
-        AIAgent agent = agentFactory.deploy(_name, _description, _feeRoyalty, _amountPerRound, msg.sender);
-        emit AIAgentCreated(msg.sender, address(agent));
+    ) external returns (SwanAgent) {
+        SwanAgent agent = agentFactory.deploy(_name, _description, _feeRoyalty, _amountPerRound, msg.sender);
+        emit AgentCreated(msg.sender, address(agent));
 
         return agent;
     }
@@ -203,12 +204,12 @@ contract Swan is SwanManager, UUPSUpgradeable {
     function list(string calldata _name, string calldata _symbol, bytes calldata _desc, uint256 _price, address _agent)
         external
     {
-        AIAgent agent = AIAgent(_agent);
-        (uint256 round, AIAgent.Phase phase,) = agent.getRoundPhase();
+        SwanAgent agent = SwanAgent(_agent);
+        (uint256 round, SwanAgent.Phase phase,) = agent.getRoundPhase();
 
         // agent must be in the listing phase
-        if (phase != AIAgent.Phase.Listing) {
-            revert AIAgent.InvalidPhase(phase, AIAgent.Phase.Listing);
+        if (phase != SwanAgent.Phase.Listing) {
+            revert SwanAgent.InvalidPhase(phase, SwanAgent.Phase.Listing);
         }
         // artifact count must not exceed `maxArtifactCount`
         if (getCurrentMarketParameters().maxArtifactCount == artifactsPerAgentRound[_agent][round].length) {
@@ -242,7 +243,7 @@ contract Swan is SwanManager, UUPSUpgradeable {
 
     /// @notice Relist the artifact for another round and/or another agent and/or another price.
     /// @param  _artifact address of the artifact.
-    /// @param  _agent new AIAgent for the artifact.
+    /// @param  _agent new agent for the artifact.
     /// @param  _price new price of the token.
     function relist(address _artifact, address _agent, uint256 _price) external {
         ArtifactListing storage artifact = listings[_artifact];
@@ -264,23 +265,23 @@ contract Swan is SwanManager, UUPSUpgradeable {
         //
         // perhaps it suffices to check `==` here, since agent round
         // is changed incrementially
-        (uint256 oldRound,,) = AIAgent(artifact.agent).getRoundPhase();
+        (uint256 oldRound,,) = SwanAgent(artifact.agent).getRoundPhase();
         if (oldRound <= artifact.round) {
             revert RoundNotFinished(_artifact, artifact.round);
         }
 
         // check the artifact price is within the acceptable range
-        if (_price < getCurrentMarketParameters().minArtifactPrice || _price >= AIAgent(_agent).amountPerRound()) {
+        if (_price < getCurrentMarketParameters().minArtifactPrice || _price >= SwanAgent(_agent).amountPerRound()) {
             revert InvalidPrice(_price);
         }
 
         // now we move on to the new agent
-        AIAgent agent = AIAgent(_agent);
-        (uint256 round, AIAgent.Phase phase,) = agent.getRoundPhase();
+        SwanAgent agent = SwanAgent(_agent);
+        (uint256 round, SwanAgent.Phase phase,) = agent.getRoundPhase();
 
         // agent must be in listing phase
-        if (phase != AIAgent.Phase.Listing) {
-            revert AIAgent.InvalidPhase(phase, AIAgent.Phase.Listing);
+        if (phase != SwanAgent.Phase.Listing) {
+            revert SwanAgent.InvalidPhase(phase, SwanAgent.Phase.Listing);
         }
 
         // agent must not have more than `maxArtifactCount` many artifacts
@@ -347,8 +348,8 @@ contract Swan is SwanManager, UUPSUpgradeable {
 
         // transfer artifact from seller to Swan, and then from Swan to agent
         // this ensure that only approval to Swan is enough for the sellers
-        Artifact(_artifact).transferFrom(listing.seller, address(this), 1);
-        Artifact(_artifact).transferFrom(address(this), listing.agent, 1);
+        SwanArtifact(_artifact).transferFrom(listing.seller, address(this), 1);
+        SwanArtifact(_artifact).transferFrom(address(this), listing.agent, 1);
 
         // transfer money
         token.transferFrom(listing.agent, address(this), listing.price);
@@ -362,8 +363,8 @@ contract Swan is SwanManager, UUPSUpgradeable {
     /// @param _agentFactory new AIAgentFactory address
     /// @param _artifactFactory new ArtifactFactory address
     function setFactories(address _agentFactory, address _artifactFactory) external onlyOwner {
-        agentFactory = AIAgentFactory(_agentFactory);
-        artifactFactory = ArtifactFactory(_artifactFactory);
+        agentFactory = SwanAgentFactory(_agentFactory);
+        artifactFactory = SwanArtifactFactory(_artifactFactory);
     }
 
     /// @notice Returns the artifact price with the given artifact address.

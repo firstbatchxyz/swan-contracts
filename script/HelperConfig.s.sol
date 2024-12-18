@@ -9,10 +9,10 @@ import {LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOrac
 import {SwanMarketParameters} from "../src/SwanManager.sol";
 import {LLMOracleCoordinator} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
 import {LLMOracleRegistry} from "@firstbatch/dria-oracle-contracts/LLMOracleRegistry.sol";
-import {AIAgentFactory} from "../src/AIAgent.sol";
-import {ArtifactFactory} from "../src/Artifact.sol";
+import {SwanAgentFactory} from "../src/SwanAgent.sol";
+import {SwanArtifactFactory} from "../src/SwanArtifact.sol";
 import {Swan} from "../src/Swan.sol";
-import {WETH9} from "../test/WETH9.sol";
+import {WETH9} from "../test/contracts/WETH9.sol";
 
 struct Stakes {
     uint256 generatorStakeAmount;
@@ -125,20 +125,20 @@ contract HelperConfig is Script {
 
     function deployAgentFactory() external returns (address) {
         vm.startBroadcast();
-        AIAgentFactory agentFactory = new AIAgentFactory();
+        SwanAgentFactory agentFactory = new SwanAgentFactory();
         vm.stopBroadcast();
 
-        writeContractAddress("AIAgentFactory", address(agentFactory));
+        writeContractAddress("SwanAgentFactory", address(agentFactory));
 
         return address(agentFactory);
     }
 
     function deployArtifactFactory() external returns (address) {
         vm.startBroadcast();
-        ArtifactFactory artifactFactory = new ArtifactFactory();
+        SwanArtifactFactory artifactFactory = new SwanArtifactFactory();
         vm.stopBroadcast();
 
-        writeContractAddress("ArtifactFactory", address(artifactFactory));
+        writeContractAddress("SwanArtifactFactory", address(artifactFactory));
 
         return address(artifactFactory);
     }
@@ -152,17 +152,17 @@ contract HelperConfig is Script {
         string memory contractAddresses = vm.readFile(path);
 
         bool isCoordinatorExist = vm.keyExistsJson(contractAddresses, "$.LLMOracleCoordinator");
-        bool isAgentFactoryExist = vm.keyExistsJson(contractAddresses, "$.AIAgentFactory");
-        bool isArtifactFactoryExist = vm.keyExistsJson(contractAddresses, "$.ArtifactFactory");
+        bool isAgentFactoryExist = vm.keyExistsJson(contractAddresses, "$.SwanAgentFactory");
+        bool isArtifactFactoryExist = vm.keyExistsJson(contractAddresses, "$.SwanArtifactFactory");
 
         require(
             isCoordinatorExist && isAgentFactoryExist && isArtifactFactoryExist,
-            "Please deploy LLMOracleCoordinator, AIAgentFactory and ArtifactFactory first"
+            "Please deploy LLMOracleCoordinator, SwanAgentFactory and SwanArtifactFactory first"
         );
 
         address coordinatorProxy = vm.parseJsonAddress(contractAddresses, "$.LLMOracleCoordinator.proxyAddr");
-        address agentFactory = vm.parseJsonAddress(contractAddresses, "$.AIAgentFactory.addr");
-        address artifactFactory = vm.parseJsonAddress(contractAddresses, "$.ArtifactFactory.addr");
+        address agentFactory = vm.parseJsonAddress(contractAddresses, "$.SwanAgentFactory.addr");
+        address artifactFactory = vm.parseJsonAddress(contractAddresses, "$.SwanArtifactFactory.addr");
 
         vm.startBroadcast();
         // deploy swan

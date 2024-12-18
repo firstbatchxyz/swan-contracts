@@ -21,3 +21,6 @@ storage/
 
 # Dotenv file
 .env
+
+# appleeeee
+.DS_Store

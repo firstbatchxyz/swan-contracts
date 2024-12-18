@@ -16,5 +16,11 @@
   "Swan": {
     "proxyAddr": "0xdeb1e9a6be7baf84208bb6e10ac9f9bbe1d70809",
     "implAddr": "0x62c20aa1e0272312bc100b4e23b4dc1ed96dd7d1"
+  },
+  "SwanAgentFactory": {
+    "addr": "0x34a1d3fff3958843c43ad80f30b94c510645c316"
+  },
+  "SwanArtifactFactory": {
+    "addr": "0x90193c961a926261b756d1e5bb255e67ff9498a1"
   }
 }

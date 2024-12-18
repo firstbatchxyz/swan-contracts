@@ -5,10 +5,10 @@ import {Upgrades} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {Helper} from "./Helper.t.sol";
 
-import {AIAgent, AIAgentFactory} from "../src/AIAgent.sol";
-import {ArtifactFactory, Artifact} from "../src/Artifact.sol";
+import {SwanAgent, SwanAgentFactory} from "../src/SwanAgent.sol";
+import {SwanArtifactFactory} from "../src/SwanArtifact.sol";
 import {Swan, SwanMarketParameters} from "../src/Swan.sol";
-import {WETH9} from "./WETH9.sol";
+import {WETH9} from "./contracts/WETH9.sol";
 import {LLMOracleRegistry} from "@firstbatch/dria-oracle-contracts/LLMOracleRegistry.sol";
 import {
     LLMOracleCoordinator, LLMOracleTaskParameters
@@ -97,7 +97,7 @@ contract SwanFuzzTest is Helper {
 
         // increase time to buy phase of the second round
         increaseTime(
-            agents[0].createdAt() + swan.getCurrentMarketParameters().listingInterval, agents[0], AIAgent.Phase.Buy, 0
+            agents[0].createdAt() + swan.getCurrentMarketParameters().listingInterval, agents[0], SwanAgent.Phase.Buy, 0
         );
 
         // change cycle time
@@ -117,10 +117,10 @@ contract SwanFuzzTest is Helper {
         // get all params
         SwanMarketParameters[] memory _allParams = swan.getMarketParameters();
         assertEq(_allParams.length, 2);
-        (uint256 _currRound, AIAgent.Phase _phase,) = agents[0].getRoundPhase();
+        (uint256 _currRound, SwanAgent.Phase _phase,) = agents[0].getRoundPhase();
 
         assertEq(_currRound, 1);
-        assertEq(uint8(_phase), uint8(AIAgent.Phase.Listing));
+        assertEq(uint8(_phase), uint8(SwanAgent.Phase.Listing));
 
         uint256 _currTimestamp = block.timestamp;
 
@@ -130,13 +130,13 @@ contract SwanFuzzTest is Helper {
             _currTimestamp + (2 * swan.getCurrentMarketParameters().listingInterval)
                 + swan.getCurrentMarketParameters().buyInterval + swan.getCurrentMarketParameters().withdrawInterval,
             agents[0],
-            AIAgent.Phase.Buy,
+            SwanAgent.Phase.Buy,
             2
         );
 
-        // deploy new AI agent
+        // deploy new agent
         vm.prank(agentOwners[0]);
-        AIAgent _agentAfterFirstSet = swan.createAgent(
+        SwanAgent _agentAfterFirstSet = swan.createAgent(
             agentParameters[1].name,
             agentParameters[1].description,
             agentParameters[1].feeRoyalty,
@@ -144,7 +144,7 @@ contract SwanFuzzTest is Helper {
         );
 
         // _agentAfterFirstSet should be in listing phase of the first round
-        checkRoundAndPhase(_agentAfterFirstSet, AIAgent.Phase.Listing, 0);
+        checkRoundAndPhase(_agentAfterFirstSet, SwanAgent.Phase.Listing, 0);
 
         // change cycle time
         setMarketParameters(
@@ -165,10 +165,10 @@ contract SwanFuzzTest is Helper {
         assertEq(_allParams.length, 3);
 
         // AIAgents[0] should be in listing phase of the fourth round (2 more increase time + 2 for setting new params)
-        checkRoundAndPhase(agents[0], AIAgent.Phase.Listing, 3);
+        checkRoundAndPhase(agents[0], SwanAgent.Phase.Listing, 3);
 
         // agentAfterFirstSet should be in listing phase of the second round
-        checkRoundAndPhase(_agentAfterFirstSet, AIAgent.Phase.Listing, 1);
+        checkRoundAndPhase(_agentAfterFirstSet, SwanAgent.Phase.Listing, 1);
     }
 
     function testFuzz_TransferOwnership(address _newOwner) public {
@@ -202,7 +202,7 @@ contract SwanFuzzTest is Helper {
 
         // Create a AI agent
         vm.prank(agentOwners[0]);
-        AIAgent _agent = swan.createAgent(_agentName, _agentDesc, _agentFee, _amountPerRound);
+        SwanAgent _agent = swan.createAgent(_agentName, _agentDesc, _agentFee, _amountPerRound);
 
         // List the artifact
         vm.prank(sellers[0]);
