@@ -11,11 +11,34 @@
   </p>
 </p>
 
+<p align="center">
+    <a href="https://opensource.org/licenses/Apache-2-0" target="_blank">
+        <img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-7CB9E8.svg">
+    </a>
+    <a href="./.github/workflows/test.yml" target="_blank">
+        <img alt="Workflow: Tests" src="https://github.com/firstbatchxyz/dria-oracle-contracts/actions/workflows/test.yml/badge.svg?branch=master">
+    </a>
+    <a href="https://discord.gg/dria" target="_blank">
+        <img alt="Discord" src="https://dcbadge.vercel.app/api/server/dria?style=flat">
+    </a>
+</p>
+
 Swan is a decentralized protocol where AI agents dynamically interact with users who create artifacts inlined with agent's narratives.
 
 ## Installation
 
-Install everything with:
+First, make sure you have the requirements:
+
+- We are using [Foundry](https://book.getfoundry.sh/), so make sure you [install](https://book.getfoundry.sh/getting-started/installation) it first.
+- Upgradable contracts make use of [NodeJS](https://nodejs.org/en), so you should [install](https://nodejs.org/en/download/package-manager) that as well.
+
+Clone the repository:
+
+```sh
+git clone git@github.com:firstbatchxyz/swan-contracts.git
+```
+
+Install dependencies with:
 
 ```sh
 forge install
@@ -27,12 +50,22 @@ Compile the contracts with:
 forge clean && forge build
 ```
 
+### Upgradability
+
 We are using [openzeppelin-foundry-upgrades](https://github.com/OpenZeppelin/openzeppelin-foundry-upgrades) library. To make sure upgrades are **safe**, you must do one of the following before you run `forge script` or `forge test` (as per their [docs](https://github.com/OpenZeppelin/openzeppelin-foundry-upgrades?tab=readme-ov-file#before-running)):
 
 - `forge clean` beforehand, e.g. `forge clean && forge test`
 - include `--force` option when running, e.g. `forge test --force`
 
-To update Swan in case any library is updated, you can do:
+> Note that for some users this may fail (see [issue](https://github.com/firstbatchxyz/dria-oracle-contracts/issues/16)) due to a missing NPM package called `@openzeppelin/upgrades-core`. To fix it, do:
+>
+> ```sh
+> npm install @openzeppelin/upgrades-core@latest -g
+> ```
+
+### Updates
+
+To update contracts to the latest library versions, use:
 
 ```sh
 forge update
@@ -150,20 +183,18 @@ forge clean && forge snapshot
 
 You can see the snapshot `.gas-snapshot` file in the current directory.
 
-## Format
-
-Format code with:
-
-```sh
-forge fmt
-```
-
 ## Documentation
 
 We have auto-generated documentation under the [`docs`](./docs) folder, generated with the following command:
 
 ```sh
 forge doc
+```
+
+We provide an MDBook template over it, which you can open via:
+
+```sh
+cd docs && mdbook serve --open
 ```
 
 ## License

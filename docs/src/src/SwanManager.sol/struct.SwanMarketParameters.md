@@ -1,10 +1,9 @@
 # SwanMarketParameters
-[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/c9444a397017d961972cbbff400b67d973ffe956/src/SwanManager.sol)
+[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/d7951743b0ff97c2f6e978aeabb850c0310d76f3/src/SwanManager.sol)
 
 Collection of market-related parameters.
 
-*Prevents stack-too-deep.
-TODO: use 256-bit tight-packing here*
+*Prevents stack-too-deep.*
 
 
 ```solidity

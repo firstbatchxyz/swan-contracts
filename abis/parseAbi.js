@@ -28,7 +28,7 @@ fs.readFile(filename, "utf8", (err, data) => {
         process.exit(1);
       }
 
-      console.log("ABI extracted and written to abi.json");
+      console.log("ABI extracted and written to", filename);
     });
   } catch (parseErr) {
     console.error(`Error parsing JSON: ${parseErr}`);
