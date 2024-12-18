@@ -35,7 +35,7 @@ First, make sure you have the requirements:
 Clone the repository:
 
 ```sh
-git clone git@github.com:firstbatchxyz/swan-contracts.git
+git clone git@github.com:firstbatchxyz/dria-oracle-contracts.git
 ```
 
 Install dependencies with:
@@ -52,11 +52,13 @@ forge clean && forge build
 
 ### Upgradability
 
-We are using [openzeppelin-foundry-upgrades](https://github.com/OpenZeppelin/openzeppelin-foundry-upgrades) library. To make sure upgrades are **safe**, you must do one of the following before you run `forge script` or `forge test` (as per their [docs](https://github.com/OpenZeppelin/openzeppelin-foundry-upgrades?tab=readme-ov-file#before-running)):
+We are using [openzeppelin-foundry-upgrades](https://github.com/OpenZeppelin/openzeppelin-foundry-upgrades) library. To make sure upgrades are **safe**, you must do one of the following (as per their [docs](https://github.com/OpenZeppelin/openzeppelin-foundry-upgrades?tab=readme-ov-file#before-running)) before you run `forge script` or `forge test`:
 
 - `forge clean` beforehand, e.g. `forge clean && forge test`
 - include `--force` option when running, e.g. `forge test --force`
 
+> [!NOTE]
+>
 > Note that for some users this may fail (see [issue](https://github.com/firstbatchxyz/dria-oracle-contracts/issues/16)) due to a missing NPM package called `@openzeppelin/upgrades-core`. To fix it, do:
 >
 > ```sh
@@ -71,67 +73,89 @@ To update contracts to the latest library versions, use:
 forge update
 ```
 
-## Deployment
+## Usage
 
-**Step 1.**
-Import your `ETHERSCAN_API_KEY` to env file.
+### Setup
 
-> [!NOTE]
->
-> Foundry expects the API key to be defined as `ETHERSCAN_API_KEY` even though you're using another explorer.
+To be able to deploy & use our contracts, we need two things:
 
-**Step 2.**
-Create keystores for deployment. [See more for keystores](https://eips.ethereum.org/EIPS/eip-2335)
+- [Ethereum Wallet](#create-wallet)
+- [RPC endpoint](#prepare-rpc-endpoint)
+
+### Create Wallet
+
+We use keystores for wallet management, with the help of [`cast wallet`](https://book.getfoundry.sh/reference/cast/wallet-commands) command.
+
+Use the command below to create your keystore. The command will prompt for your **private key**, and a **password** to encrypt the keystore itself.
 
 ```sh
-cast wallet import <FILE_NAME_OF_YOUR_KEYSTORE> --interactive
+cast wallet import <WALLET_NAME> --interactive
 ```
 
-You can see your wallets with:
+> [!ALERT]
+>
+> Note that you will need to enter the password when you use this keystore.
+
+You can see your keystores under the default directory (`~/.foundry/keystores`) with the command:
 
 ```sh
 cast wallet list
 ```
 
-> [!NOTE]
->
-> Recommended to create keystores on directly on your shell.
-> You HAVE to type your password on the terminal to be able to use your keys. (e.g when deploying a contract)
+### Prepare RPC Endpoint
 
-**Step 3.**
-Enter your private key (associated with your address) and password on terminal. You'll see your address on terminal.
+To interact with the blockchain, we require an RPC endpoint. You can get one from:
 
-> [!NOTE]
->
-> If you want to deploy contracts on localhost please provide local address for the command above.
+- [Alchemy](https://www.alchemy.com/)
+- [Infura](https://www.infura.io/)
+- [(see more)](https://www.alchemy.com/best/rpc-node-providers)
 
-**Step 4.**
+You will use this endpoint for the commands that interact with the blockchain, such as deploying and upgrading; or while doing fork tests.
+
+### Deploy & Verify Contract
+
 Deploy the contract with:
 
 ```sh
-forge clean && forge script ./script/Deploy.s.sol:Deploy<CONTRACT_NAME> --rpc-url <RPC_URL> --account <FILE_NAME_OF_YOUR_KEYSTORE> --sender <DEPLOYER_ADDRESS> --broadcast
+forge clean && forge script ./script/Deploy.s.sol:Deploy<CONTRACT_NAME> \
+--rpc-url <RPC_URL> \
+--account <WALLET_NAME> \
+--broadcast
 ```
-
-or for instant verification use:
-
-```sh
-forge clean && forge script ./script/Deploy.s.sol:Deploy<CONTRACT_NAME> --rpc-url <RPC_URL> --account <FILE_NAME_OF_YOUR_KEYSTORE> --sender <DEPLOYER_ADDRESS> --broadcast --verify --verifier <etherscan|blockscout|sourcify> --verifier-url <VERIFIER_URL>
-```
-
-> [!NOTE] > `<VERIFIER_URL>` should be expolorer's homepage url. Forge reads your `<ETHERSCAN_API_KEY>` from .env file so you don't need to add this at the end of `<VERIFIER_URL>`.
->
-> e.g.
-> `https://base-sepolia.blockscout.com/api/` for `Base Sepolia Network`
 
 You can see deployed contract addresses under the `deployment/<chainid>.json`
 
-## Verify Contract
-
-Verify contract manually with:
+You can verify the contract during deployment by adding the verification arguments as well:
 
 ```sh
-forge verify-contract <CONTRACT_ADDRESS> src/$<CONTRACT_NAME>.sol:<CONTRACT_NAME> --verifier <etherscan|blockscout|sourcify> --verifier-url <VERIFIER_URL>
+forge clean && forge script ./script/Deploy.s.sol:Deploy<CONTRACT_NAME> \
+--rpc-url <RPC_URL> \
+--account <WALLET_NAME> \
+--broadcast \
+--verify --verifier blockscout \
+--verifier-url <VERIFIER_URL>
 ```
+
+You can verify an existing contract with:
+
+```sh
+forge verify-contract <CONTRACT_ADDRESS> ./src/<CONTRACT_NAME>.sol:<CONTRACT_NAME> \
+--verifier blockscout \
+--verifier-url <VERIFIER_URL>
+```
+
+Note that the `--verifier-url` value should be the target explorer's homepage URL. Some example URLs are:
+
+- `https://base.blockscout.com/api/` for Base (Mainnet)
+- `https://base-sepolia.blockscout.com/api/` for Base Sepolia (Testnet)
+
+> [!NOTE]
+>
+> URL should not contain the API key! Foundry will read your `ETHERSCAN_API_KEY` from environment.
+
+> [!NOTE]
+>
+> The `--verifier` can accept any of the following: `etherscan`, `blockscout`, `sourcify`, `oklink`. We are using Blockscout most of the time.
 
 ## Testing & Diagnostics
 
@@ -139,6 +163,9 @@ Run tests on local network:
 
 ```sh
 forge clean && forge test
+
+# or -vvv to show reverts in detail
+forge clean && forge test -vvv
 ```
 
 or fork an existing chain and run the tests on it:
@@ -147,31 +174,29 @@ or fork an existing chain and run the tests on it:
 forge clean && forge test --rpc-url <RPC_URL>
 ```
 
-### Coverage
+### Code Coverage
 
-Check coverages with:
+We have a script that generates the coverage information as an HTML page. This script requires [`lcov`](https://linux.die.net/man/1/lcov) and [`genhtml`](https://linux.die.net/man/1/genhtml) command line tools. To run, do:
 
 ```sh
-forge clean && bash coverage.sh
+forge clean && ./coverage.sh
 ```
 
-or to see summarized coverages on terminal:
+Alternatively, you can see a summarized text-only output as well:
 
 ```sh
 forge clean && forge coverage --no-match-coverage "(test|mock|script)"
 ```
-
-You can see coverages under the coverage directory.
 
 ### Storage Layout
 
 Get storage layout with:
 
 ```sh
-forge clean && bash storage.sh
+./storage.sh
 ```
 
-You can see storage layouts under the storage directory.
+You can see storage layouts under the [`storage`](./storage/) directory.
 
 ### Gas Snapshot
 
@@ -185,16 +210,13 @@ You can see the snapshot `.gas-snapshot` file in the current directory.
 
 ## Documentation
 
-We have auto-generated documentation under the [`docs`](./docs) folder, generated with the following command:
+We have auto-generated MDBook documentations under the [`docs`](./docs) folder, generated with the following command:
 
 ```sh
 forge doc
-```
 
-We provide an MDBook template over it, which you can open via:
-
-```sh
-cd docs && mdbook serve --open
+# serves the book as well
+forge doc --serve
 ```
 
 ## License
