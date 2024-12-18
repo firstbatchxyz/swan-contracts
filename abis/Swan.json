@@ -113,7 +113,7 @@
         "internalType": "string"
       },
       {
-        "name": "_feeRoyalty",
+        "name": "_listingFee",
         "type": "uint96",
         "internalType": "uint96"
       },
@@ -233,7 +233,7 @@
             "internalType": "uint256"
           },
           {
-            "name": "feeRoyalty",
+            "name": "listingFee",
             "type": "uint96",
             "internalType": "uint96"
           },
@@ -550,7 +550,7 @@
         "internalType": "uint256"
       },
       {
-        "name": "feeRoyalty",
+        "name": "listingFee",
         "type": "uint96",
         "internalType": "uint96"
       },

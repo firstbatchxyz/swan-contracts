@@ -13,7 +13,7 @@
         "internalType": "string"
       },
       {
-        "name": "_feeRoyalty",
+        "name": "_listingFee",
         "type": "uint96",
         "internalType": "uint96"
       },
@@ -70,19 +70,6 @@
         "name": "",
         "type": "string",
         "internalType": "string"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "feeRoyalty",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint96",
-        "internalType": "uint96"
       }
     ],
     "stateMutability": "view"
@@ -149,6 +136,19 @@
         "name": "isProcessed",
         "type": "bool",
         "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "listingFee",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint96",
+        "internalType": "uint96"
       }
     ],
     "stateMutability": "view"
@@ -327,10 +327,10 @@
   },
   {
     "type": "function",
-    "name": "setFeeRoyalty",
+    "name": "setListingFee",
     "inputs": [
       {
-        "name": "newFeeRoyalty",
+        "name": "newListingFee",
         "type": "uint96",
         "internalType": "uint96"
       }
