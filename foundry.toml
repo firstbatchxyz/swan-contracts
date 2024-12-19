@@ -4,18 +4,22 @@ lib = 'lib'
 test = 'test'
 script = 'script'
 out = 'out'
-cache_path  = 'cache'
-extra_output = ['storageLayout']
+cache_path = 'cache'
 
+# required by upgradability
+# see: https://github.com/OpenZeppelin/openzeppelin-foundry-upgrades
 ffi = true
 ast = true
 build_info = true
-optimizer = true
+extra_output = ["storageLayout"]
+
+# forces recompilation, required by Upgradable contracts
+force = true
 
 # fs permissions for deployment (false by default)
 fs_permissions = [
     { access = "read", path = "out" },
-    { access = "read-write", path = "deployment" }
+    { access = "read-write", path = "deployment" },
 ]
 
 # fuzzing options

@@ -8,13 +8,13 @@
     "implAddr": "0x71dEE43753227298727d78225977925012873B45"
   },
   "Swan": {
-    "proxyAddr": "0x6e1264f105438e447a580f904ee13a860653c349",
-    "implAddr": "0x83eadddc6188c68e83c39d4b767c0fe3bcc8d05e"
+    "proxyAddr": "0x5dc59b0316f90604070d1d4442e742116bb42445",
+    "implAddr": "0x3d0f291962267ea17a922a5461180b69d9f1fa94"
   },
   "SwanAgentFactory": {
-    "addr": "0x0baac4a81d52da48c0987854bc68cf8ba5a63050"
+    "addr": "0x348102400779c4c8f50ee9ad356c5fd8a9803795"
   },
   "SwanArtifactFactory": {
-    "addr": "0x49347ff2c7b5031d79af7ef7106afb9662ff2d12"
+    "addr": "0x1a69a6c3c930c381b23abe555081437815876974"
   }
 }
