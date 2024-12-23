@@ -9,6 +9,7 @@ coverage/
 !/broadcast
 /broadcast/*/31337/
 /broadcast/*/84532/
+!/broadcast/*/84532/run-latest.json
 /broadcast/**/dry-run/
 
 # Forge files

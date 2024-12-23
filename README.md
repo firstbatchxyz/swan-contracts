@@ -23,8 +23,6 @@
     </a>
 </p>
 
-Swan is a decentralized protocol where AI agents dynamically interact with users who create artifacts inlined with agent's narratives.
-
 ## Installation
 
 First, make sure you have the requirements:
@@ -47,19 +45,14 @@ forge install
 Compile the contracts with:
 
 ```sh
-forge clean && forge build
+forge build
 ```
-
-### Upgradability
-
-We are using [openzeppelin-foundry-upgrades](https://github.com/OpenZeppelin/openzeppelin-foundry-upgrades) library. To make sure upgrades are **safe**, you must do one of the following (as per their [docs](https://github.com/OpenZeppelin/openzeppelin-foundry-upgrades?tab=readme-ov-file#before-running)) before you run `forge script` or `forge test`:
-
-- `forge clean` beforehand, e.g. `forge clean && forge test`
-- include `--force` option when running, e.g. `forge test --force`
 
 > [!NOTE]
 >
-> Note that for some users this may fail (see [issue](https://github.com/firstbatchxyz/dria-oracle-contracts/issues/16)) due to a missing NPM package called `@openzeppelin/upgrades-core`. To fix it, do:
+> We are using [openzeppelin-foundry-upgrades](https://github.com/OpenZeppelin/openzeppelin-foundry-upgrades) library, which [requires](https://github.com/OpenZeppelin/openzeppelin-foundry-upgrades?tab=readme-ov-file#before-running) clean-up per compilation to ensure upgrades are done safely. We use `force = true` option in `foundry.toml` for this, which may increase build times.
+>
+> Note that for some users this may fail (see [issue](https://github.com/firstbatchxyz/dria-oracle-contracts/issues/16)) due to a missing NPM package called `@openzeppelin/upgrades-core`. To fix it, you can install the package manually:
 >
 > ```sh
 > npm install @openzeppelin/upgrades-core@latest -g
@@ -117,7 +110,7 @@ You will use this endpoint for the commands that interact with the blockchain, s
 Deploy the contract with:
 
 ```sh
-forge clean && forge script ./script/Deploy.s.sol:Deploy<CONTRACT_NAME> \
+forge script ./script/Deploy.s.sol:Deploy<CONTRACT_NAME> \
 --rpc-url <RPC_URL> \
 --account <WALLET_NAME> \
 --broadcast
@@ -128,7 +121,7 @@ You can see deployed contract addresses under the `deployment/<chainid>.json`
 You can verify the contract during deployment by adding the verification arguments as well:
 
 ```sh
-forge clean && forge script ./script/Deploy.s.sol:Deploy<CONTRACT_NAME> \
+forge script ./script/Deploy.s.sol:Deploy<CONTRACT_NAME> \
 --rpc-url <RPC_URL> \
 --account <WALLET_NAME> \
 --broadcast \
@@ -157,21 +150,34 @@ Note that the `--verifier-url` value should be the target explorer's homepage UR
 >
 > The `--verifier` can accept any of the following: `etherscan`, `blockscout`, `sourcify`, `oklink`. We are using Blockscout most of the time.
 
+### Generate ABIs
+
+To interact with the contracts, you need the contract ABIs. We store the ABIs under the [`abis`](./abis/) folder, and these can be generated using the following script:
+
+```sh
+./export-abis.sh
+```
+
+### Upgrade Contract
+
+Upgrading an existing contract is done as per the instructions in [openzeppelin-foundry-upgrades](https://github.com/OpenZeppelin/openzeppelin-foundry-upgrades) repository.
+The `--sender <ADDRESS>` field is required when deploying a contract,
+
 ## Testing & Diagnostics
 
 Run tests on local network:
 
 ```sh
-forge clean && forge test
+forge test
 
 # or -vvv to show reverts in detail
-forge clean && forge test -vvv
+forge test -vvv
 ```
 
 or fork an existing chain and run the tests on it:
 
 ```sh
-forge clean && forge test --rpc-url <RPC_URL>
+forge test --rpc-url <RPC_URL>
 ```
 
 ### Code Coverage
@@ -179,34 +185,48 @@ forge clean && forge test --rpc-url <RPC_URL>
 We have a script that generates the coverage information as an HTML page. This script requires [`lcov`](https://linux.die.net/man/1/lcov) and [`genhtml`](https://linux.die.net/man/1/genhtml) command line tools. To run, do:
 
 ```sh
-forge clean && ./coverage.sh
+./coverage.sh
 ```
 
 Alternatively, you can see a summarized text-only output as well:
 
 ```sh
-forge clean && forge coverage --no-match-coverage "(test|mock|script)"
+forge coverage --no-match-coverage "(test|mock|script)"
 ```
 
 ### Storage Layout
 
-Get storage layout with:
+You can print storage layouts for each contract using:
 
 ```sh
 ./storage.sh
 ```
 
-You can see storage layouts under the [`storage`](./storage/) directory.
+The resulting Markdown files will be created under the [`storage`](./storage/) directory.
 
 ### Gas Snapshot
 
-Take the gas snapshot with:
+You can examine the gas usage metrics using the command:
 
 ```sh
-forge clean && forge snapshot
+forge snapshot --snap ./test/.gas-snapshot
 ```
 
 You can see the snapshot `.gas-snapshot` file in the current directory.
+
+### Styling
+
+You can format the contracts with:
+
+```sh
+forge fmt ./src/**/*.sol ./script/**/*.sol
+```
+
+If you have solhint installed, you can lint all contracts with:
+
+```sh
+solhint 'contracts/**/*.sol'
+```
 
 ## Documentation
 
@@ -221,4 +241,4 @@ forge doc --serve
 
 ## License
 
-We are using Apache-2.0 license.
+We are using [Apache-2.0](./LICENSE) license.
