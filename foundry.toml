@@ -19,7 +19,7 @@ force = true
 # fs permissions for deployment (false by default)
 fs_permissions = [
     { access = "read", path = "out" },
-    { access = "read-write", path = "deployment" },
+    { access = "read-write", path = "deployments" },
 ]
 
 # fuzzing options

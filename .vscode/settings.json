@@ -7,5 +7,12 @@
   },
   "solidity.formatter": "forge",
   "solidity.compileUsingRemoteVersion": "v0.8.26",
-  "solidity.defaultCompiler": "localFile"
+  "solidity.defaultCompiler": "localFile",
+  "solidity.remappingsUnix": [
+    "forge-std/=lib/forge-std/src/",
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/",
+    "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
+    "@openzeppelin/foundry-upgrades/=lib/openzeppelin-foundry-upgrades/src/",
+    "@firstbatch/dria-oracle-contracts/=lib/dria-oracle-contracts/src/"
+  ]
 }
