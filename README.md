@@ -58,6 +58,15 @@ forge build
 > npm install @openzeppelin/upgrades-core@latest -g
 > ```
 
+> [!TIP]
+>
+> If at any point the submodules become "dirty" (e.g. there are local changes that you are unaware of) you can do:
+>
+> ```sh
+> git submodule deinit -f .
+> git submodule update --init --recursive --checkout
+> ```
+
 ### Updates
 
 To update contracts to the latest library versions, use:
