@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.20;
 
-import {Upgrades} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
+import {UnsafeUpgrades} from "@openzeppelin/foundry-upgrades/Upgrades.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {Test} from "forge-std/Test.sol";
 
@@ -132,8 +132,8 @@ abstract contract Helper is Test {
         // deploy llm contracts
         vm.startPrank(dria);
 
-        address registryProxy = Upgrades.deployUUPSProxy(
-            "LLMOracleRegistry.sol",
+        address registryProxy = UnsafeUpgrades.deployUUPSProxy(
+            address(new LLMOracleRegistry()),
             abi.encodeCall(
                 LLMOracleRegistry.initialize,
                 (stakes.generatorStakeAmount, stakes.validatorStakeAmount, address(token), minRegistrationTime)
@@ -141,8 +141,8 @@ abstract contract Helper is Test {
         );
         oracleRegistry = LLMOracleRegistry(registryProxy);
 
-        address coordinatorProxy = Upgrades.deployUUPSProxy(
-            "LLMOracleCoordinator.sol",
+        address coordinatorProxy = UnsafeUpgrades.deployUUPSProxy(
+            address(new LLMOracleCoordinator()),
             abi.encodeCall(
                 LLMOracleCoordinator.initialize,
                 (
@@ -163,8 +163,8 @@ abstract contract Helper is Test {
         artifactFactory = new SwanArtifactFactory();
 
         // deploy swan
-        address swanProxy = Upgrades.deployUUPSProxy(
-            "Swan.sol",
+        address swanProxy = UnsafeUpgrades.deployUUPSProxy(
+            address(new Swan()),
             abi.encodeCall(
                 Swan.initialize,
                 (

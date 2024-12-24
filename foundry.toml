@@ -16,6 +16,14 @@ extra_output = ["storageLayout"]
 # forces recompilation, required by Upgradable contracts
 force = true
 
+# testing does not care about the upgrade checks above
+# so we disable them with 
+[profile.test]
+ffi = false
+ast = false
+build_info = false
+force = false
+
 # fs permissions for deployment (false by default)
 fs_permissions = [
     { access = "read", path = "out" },

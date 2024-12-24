@@ -187,16 +187,16 @@ forge script ./script/Deploy.s.sol:Upgrade<CONTRACT_NAME> \
 Run tests on local network:
 
 ```sh
-forge test
+FOUNDRY_PROFILE=test forge test
 
 # or -vvv to show reverts in detail
-forge test -vvv
+FOUNDRY_PROFILE=test forge test -vvv
 ```
 
 or fork an existing chain and run the tests on it:
 
 ```sh
-forge test --rpc-url <RPC_URL>
+FOUNDRY_PROFILE=test forge test --rpc-url <RPC_URL>
 ```
 
 ### Code Coverage
@@ -218,7 +218,7 @@ forge coverage --no-match-coverage "(test|mock|script)"
 You can examine the gas usage metrics using the command:
 
 ```sh
-forge snapshot --snap ./test/.gas-snapshot
+FOUNDRY_PROFILE=test forge snapshot --snap ./test/.gas-snapshot
 ```
 
 You can see the snapshot `.gas-snapshot` file in the current directory.
@@ -234,7 +234,7 @@ forge fmt ./src/**/*.sol ./script/**/*.sol
 If you have solhint installed, you can lint all contracts with:
 
 ```sh
-solhint 'contracts/**/*.sol'
+solhint 'src/**/*.sol' 'script/**/*.sol'
 ```
 
 ## Documentation
