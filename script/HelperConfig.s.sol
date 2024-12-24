@@ -44,11 +44,11 @@ contract HelperConfig is Script {
         taskParams = LLMOracleTaskParameters({difficulty: 2, numGenerations: 1, numValidations: 1});
 
         marketParams = SwanMarketParameters({
-            maxArtifactCount: 500,
+            maxArtifactCount: 750,
             listingInterval: 4 hours,
             buyInterval: 30 minutes,
             withdrawInterval: 15 minutes,
-            platformFee: 1, // percentage
+            platformFee: 15, // percentage
             minArtifactPrice: 0.00001 ether,
             timestamp: 0, // will be set in the first call
             maxAgentFee: 75 // percentage

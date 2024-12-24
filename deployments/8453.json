@@ -1,0 +1,20 @@
+{
+  "LLMOracleRegistry": {
+    "proxyAddr": "0x7645eef691ad9dc0f29b6abfc73cca4c8be44051",
+    "implAddr": "0xfc9bc11ef75575c8c048989a874356ce2d1fd290"
+  },
+  "LLMOracleCoordinator": {
+    "proxyAddr": "0x17b6d1eddcd5f9ca19bb2ffed2f3deb6bd74bd20",
+    "implAddr": "0x01547c5e13fd80ea6f3b7811acda51cf3989f832"
+  },
+  "SwanArtifactFactory": {
+    "addr": "0xc44cf6eb10f0b592246234eb3ee61d9534a04f6d"
+  },
+  "SwanAgentFactory": {
+    "addr": "0x8d7dfc92613aac6a0a8f89dd0ed3e52c0c83f3c3"
+  },
+  "Swan": {
+    "proxyAddr": "0x17b033fe8d43a4007b29c3d9ed6c81b6cb17d627",
+    "implAddr": "0x10dbc8ed4a7173a342c5975b8dda13d15d128870"
+  }
+}
