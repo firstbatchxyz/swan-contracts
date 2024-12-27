@@ -94,7 +94,7 @@ Use the command below to create your keystore. The command will prompt for your 
 cast wallet import <WALLET_NAME> --interactive
 ```
 
-> [!ALERT]
+> [!WARNING]
 >
 > Note that you will need to enter the password when you use this keystore.
 
