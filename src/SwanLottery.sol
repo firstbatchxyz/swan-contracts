@@ -30,9 +30,9 @@ contract SwanLottery is Ownable {
 
     event MultiplierAssigned(address indexed artifact, uint256 indexed round, uint256 multiplier);
     event RewardClaimed(address indexed seller, address indexed artifact, uint256 indexed round, uint256 reward);
-    event AuthorizerUpdated(address indexed authorizer, bool status);
+    event AuthorizationUpdated(address indexed authorizer, bool status);
 
-    constructor(address _swan) {
+    constructor(address _swan, address initialOwner) Ownable(initialOwner) {
         swan = Swan(_swan);
         token = swan.token();
     }
@@ -60,12 +60,12 @@ contract SwanLottery is Ownable {
         ) % BASIS_POINTS;
 
         // example
-        if (rand < 7500) return 10000; // 75% chance of 1x
-        if (rand < 9000) return 20000; // 15% chance of 2x
-        if (rand < 9500) return 30000; // 5% chance of 3x
-        if (rand < 9800) return 50000; // 3% chance of 5x
-        if (rand < 9950) return 100000; // 1.5% chance of 10x
-        return 200000; // 0.5% chance of 20x
+        if (rand < 7500) return 1 * BASIS_POINTS; // 75% chance of 1x
+        if (rand < 9000) return 2 * BASIS_POINTS; // 15% chance of 2x
+        if (rand < 9500) return 3 * BASIS_POINTS; // 5% chance of 3x
+        if (rand < 9800) return 5 * BASIS_POINTS; // 3% chance of 5x
+        if (rand < 9950) return 10 * BASIS_POINTS; // 1.5% chance of 10x
+        return 20 * BASIS_POINTS; // 0.5% chance of 20x
     }
 
     function claimRewards(address artifactAddress, uint256 round) public onlyAuthorized {
@@ -93,8 +93,8 @@ contract SwanLottery is Ownable {
         return (listing.listingFee * multiplier) / BASIS_POINTS;
     }
 
-    function setAuthorizer(address authorizer, bool status) external onlyOwner {
-        isAuthorized[authorizer] = status;
-        emit AuthorizerUpdated(authorizer, status);
+    function setAuthorization(address addr, bool status) external onlyOwner {
+        isAuthorized[addr] = status;
+        emit AuthorizationUpdated(addr, status);
     }
 }
