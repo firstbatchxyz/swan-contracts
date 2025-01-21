@@ -138,7 +138,7 @@ forge inspect <CONTRACT_NAME> abi > ./deployments/abis/<CONTRACT_NAME>.json
 Verification requires the following values, based on which provider you are using:
 
 - **Provider**: can accept any of `etherscan`, `blockscout`, `sourcify`, `oklink` or `custom` for more fine-grained stuff.
-- **URL**: based on the chosen provider, we require its URL as well, e.g. `https://base-sepolia.blockscout.com/api/` for `blockscout` on Base Sepolia
+- **URL**: based on the chosen provider, its URL, e.g. `https://base-sepolia.blockscout.com/api/` for `blockscout` on Base Sepolia
 - **API Key**: an API key from the chosen provider, must be stored as `ETHERSCAN_API_KEY` in environment no matter whicih provider it is!.
 
 You can actually verify the contract during deployment by adding the verification arguments as well:
@@ -149,15 +149,19 @@ forge script ./script/Deploy.s.sol:Deploy<CONTRACT_NAME> \
 --account <WALLET_NAME> \
 --broadcast \
 --verify --verifier blockscout \
---verifier-url <VERIFIER_URL>
+--verifier-url <VERIFIER_URL> \
+--chain-id 8453
 ```
 
-Alternatively, you can verify an existing contract (perhaps deployed from a factory) with:
+Alternatively, you can verify an existing contract (perhaps deployed from a factory) with the following command:
 
 ```sh
 forge verify-contract <CONTRACT_ADDRESS> ./src/<CONTRACT_NAME>.sol:<CONTRACT_NAME> \
---verifier blockscout --verifier-url <VERIFIER_URL>
+--verifier blockscout --verifier-url <VERIFIER_URL> \
+--etherscan-api-key <API_KEY> --chain-id 8453
 ```
+
+The chain ID is 8453 for Base Mainnet, and 84532 for Base Sepolia.
 
 ### Upgrade Contract
 
