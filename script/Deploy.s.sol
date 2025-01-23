@@ -61,3 +61,12 @@ contract DeploySwan is Script {
         (proxy, impl) = config.deploySwan();
     }
 }
+
+contract DeploySwanLottery is Script {
+    HelperConfig public config;
+
+    function run() external returns (address addr) {
+        config = new HelperConfig();
+        addr = config.deploySwanLottery();
+    }
+}

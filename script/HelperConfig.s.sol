@@ -12,6 +12,7 @@ import {LLMOracleRegistry} from "@firstbatch/dria-oracle-contracts/LLMOracleRegi
 import {SwanAgentFactory} from "../src/SwanAgent.sol";
 import {SwanArtifactFactory} from "../src/SwanArtifact.sol";
 import {Swan} from "../src/Swan.sol";
+import {SwanLottery} from "../src/SwanLottery.sol";
 import {WETH9} from "../test/contracts/WETH9.sol";
 
 struct Stakes {
@@ -195,6 +196,31 @@ contract HelperConfig is Script {
         writeProxyAddresses("Swan", swanProxy, swanImplementation);
 
         return (swanProxy, swanImplementation);
+    }
+
+    function deploySwanLottery() external returns (address) {
+        // read Swan proxy address from deployments file
+        string memory dir = "deployments/";
+        string memory fileName = Strings.toString(block.chainid);
+        string memory path = string.concat(dir, fileName, ".json");
+
+        string memory contractAddresses = vm.readFile(path);
+        bool isSwanExist = vm.keyExistsJson(contractAddresses, "$.Swan");
+        require(isSwanExist, "Please deploy Swan first");
+
+        address swanProxy = vm.parseJsonAddress(contractAddresses, "$.Swan.proxyAddr");
+        require(swanProxy != address(0), "Swan proxy address is invalid");
+
+        // Default claim window
+        uint256 defaultClaimWindow = 2;
+
+        vm.startBroadcast();
+        SwanLottery lottery = new SwanLottery(swanProxy, defaultClaimWindow);
+        vm.stopBroadcast();
+
+        writeContractAddress("SwanLottery", address(lottery));
+
+        return address(lottery);
     }
 
     function writeContractAddress(string memory name, address addr) internal {
