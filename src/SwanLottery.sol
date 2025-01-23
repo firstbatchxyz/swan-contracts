@@ -30,12 +30,17 @@ contract SwanLottery is Ownable {
     event ClaimWindowUpdated(uint256 oldWindow, uint256 newWindow);
 
     // ERRORS
+    // ERRORS
     error Unauthorized(address caller);
     error InvalidClaimWindow();
     error MultiplierAlreadyAssigned(address artifact, uint256 round);
     error InvalidRound(uint256 current, uint256 required);
     error RewardAlreadyClaimed(address artifact, uint256 round);
     error ClaimWindowExpired(uint256 currentRound, uint256 listingRound, uint256 window);
+    error InvalidArtifact(address artifact);
+    error ArtifactNotSold(address artifact);
+    error NoBonusAvailable(address artifact, uint256 multiplier);
+    error NoRewardAvailable(address artifact, uint256 round);
 
     // MODIFIERS
     modifier onlyAuthorized() {
@@ -56,7 +61,7 @@ contract SwanLottery is Ownable {
     function assignMultiplier(address artifact, uint256 round) external onlyAuthorized {
         // verify listing exists
         Swan.ArtifactListing memory listing = swan.getListing(artifact);
-        if (listing.seller == address(0)) revert("Invalid artifact");
+        if (listing.seller == address(0)) revert InvalidArtifact(artifact);
         if (listing.round != round) revert InvalidRound(listing.round, round);
 
         // check multiplier not already assigned
@@ -112,7 +117,7 @@ contract SwanLottery is Ownable {
 
         // Get listing and validate
         Swan.ArtifactListing memory listing = swan.getListing(artifact);
-        if (listing.status != Swan.ArtifactStatus.Sold) revert("Not sold");
+        if (listing.status != Swan.ArtifactStatus.Sold) revert ArtifactNotSold(artifact);
         if (listing.round != round) revert InvalidRound(listing.round, round);
 
         // Check claim window using agent's round
@@ -123,14 +128,14 @@ contract SwanLottery is Ownable {
 
         // Check multiplier and compute reward
         uint256 multiplier = artifactMultipliers[artifact][round];
-        if (multiplier <= BASIS_POINTS) revert("No bonus available");
+        if (multiplier <= BASIS_POINTS) revert NoBonusAvailable(artifact, multiplier);
 
         uint256 reward = getRewards(artifact, round);
-        if (reward > 0) {
-            rewardsClaimed[artifact][round] = true;
-            token.transferFrom(swan.owner(), listing.seller, reward);
-            emit RewardClaimed(listing.seller, artifact, round, reward);
-        }
+        if (reward == 0) revert NoRewardAvailable(artifact, round);
+
+        rewardsClaimed[artifact][round] = true;
+        token.transferFrom(swan.owner(), listing.seller, reward);
+        emit RewardClaimed(listing.seller, artifact, round, reward);
     }
 
     /// @notice Calculate potential reward
