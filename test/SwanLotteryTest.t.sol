@@ -300,7 +300,6 @@ contract SwanLotteryTest is Helper {
         vm.startPrank(lottery.owner());
         lottery.setAuthorization(address(this), true);
 
-        // Use encoded selector
         bytes memory expectedError = abi.encodeWithSignature("InvalidArtifact(address)", invalidArtifact);
         vm.expectRevert(expectedError);
         lottery.assignMultiplier(invalidArtifact, 0);
