@@ -13,6 +13,7 @@ import {LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOrac
 import {SwanAgent, SwanAgentFactory} from "../src/SwanAgent.sol";
 import {SwanArtifactFactory} from "../src/SwanArtifact.sol";
 import {Swan} from "../src/Swan.sol";
+import {SwanLottery} from "../src/SwanLottery.sol";
 import {Stakes, Fees} from "../script/HelperConfig.s.sol";
 
 // CREATED TO PREVENT CODE DUPLICATION IN TESTS
@@ -56,6 +57,9 @@ abstract contract Helper is Test {
 
     WETH9 token;
     Swan swan;
+
+    SwanLottery public lottery;
+    uint256 constant DEFAULT_CLAIM_WINDOW = 2;
 
     bytes input = "0x";
     bytes models = "0x";
@@ -178,6 +182,8 @@ abstract contract Helper is Test {
             )
         );
         swan = Swan(swanProxy);
+
+        lottery = new SwanLottery(address(swan), DEFAULT_CLAIM_WINDOW);
         vm.stopPrank();
 
         vm.label(address(swan), "Swan");
@@ -186,6 +192,7 @@ abstract contract Helper is Test {
         vm.label(address(oracleCoordinator), "LLMOracleCoordinator");
         vm.label(address(agentFactory), "SwanAgentFactory");
         vm.label(address(artifactFactory), "SwanArtifactFactory");
+        vm.label(address(lottery), "SwanLottery");
     }
 
     /// @notice Add validators to the whitelist.

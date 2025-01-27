@@ -30,7 +30,6 @@ contract SwanLottery is Ownable {
     event ClaimWindowUpdated(uint256 oldWindow, uint256 newWindow);
 
     // ERRORS
-    // ERRORS
     error Unauthorized(address caller);
     error InvalidClaimWindow();
     error MultiplierAlreadyAssigned(address artifact, uint256 round);
