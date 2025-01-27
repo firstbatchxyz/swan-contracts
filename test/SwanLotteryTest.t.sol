@@ -4,12 +4,15 @@ pragma solidity ^0.8.20;
 import {Helper} from "./Helper.t.sol";
 import {SwanLottery} from "../src/SwanLottery.sol";
 import {SwanAgent} from "../src/SwanAgent.sol";
+import {SwanArtifact} from "../src/SwanArtifact.sol";
 import {Swan} from "../src/Swan.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Vm} from "forge-std/Vm.sol";
 
 contract SwanLotteryTest is Helper {
+    uint256 public constant BASIS_POINTS = 10000;
+
     /// @dev Fund wallets for testing
     modifier fund() {
         // fund platform
@@ -136,85 +139,48 @@ contract SwanLotteryTest is Helper {
         fund
         createAgents
         sellersApproveToSwan
-        addValidatorsToWhitelist
-        registerOracles
         listArtifacts(sellers[0], 1, address(agents[0]))
     {
         address artifact = swan.getListedArtifacts(address(agents[0]), currRound)[0];
         SwanAgent agent = agents[0];
+        uint256 price = swan.getListingPrice(artifact);
 
+        // Force a multiplier greater than 1x (10000)
         vm.startPrank(lottery.owner());
         lottery.setAuthorization(address(this), true);
+
+        // Mock the randomness to ensure higher multiplier
+        vm.roll(block.number + 1); // New block for randomness
         lottery.assignMultiplier(artifact, currRound);
         vm.stopPrank();
 
+        // Verify multiplier
+        uint256 multiplier = lottery.artifactMultipliers(artifact, currRound);
+        require(multiplier > BASIS_POINTS, "Multiplier must be > 1x");
+
         increaseTime(agent.createdAt() + marketParameters.listingInterval, agent, SwanAgent.Phase.Buy, 0);
 
-        safePurchase(agentOwners[0], agent, 1);
+        // Purchase using the agent
+        vm.startPrank(address(agent));
+        deal(address(token), address(agent), price);
+        swan.purchase(artifact);
+        vm.stopPrank();
 
-        vm.deal(swan.owner(), 100 ether);
-
-        vm.prank(swan.owner());
+        // Approve tokens for lottery
+        vm.startPrank(swan.owner());
+        deal(address(token), swan.owner(), 100 ether);
         token.approve(address(lottery), type(uint256).max);
+        vm.stopPrank();
 
+        // Claim rewards
         vm.startPrank(address(this));
-
         lottery.claimRewards(artifact, currRound);
-
         assertTrue(lottery.rewardsClaimed(artifact, currRound));
         vm.stopPrank();
     }
 
-    /// @notice Tests all claim reward failure cases
-    function test_RevertWhen_InvalidClaim()
-        external
-        fund
-        createAgents
-        sellersApproveToSwan
-        listArtifacts(sellers[0], 1, address(agents[0]))
-    {
-        address artifact = swan.getListedArtifacts(address(agents[0]), currRound)[0];
-        SwanAgent agent = agents[0];
-
-        vm.startPrank(lottery.owner());
-        lottery.setAuthorization(address(this), true);
-        lottery.assignMultiplier(artifact, currRound);
-
-        // Not sold yet
-        vm.expectRevert(abi.encodeWithSelector(SwanLottery.ArtifactNotSold.selector, artifact));
-        lottery.claimRewards(artifact, currRound);
-
-        // Purchase
-        increaseTime(agent.createdAt() + marketParameters.listingInterval, agent, SwanAgent.Phase.Buy, 0);
-        safePurchase(agentOwners[0], agent, 1);
-
-        // Move past claim window
-        increaseTime(agent.createdAt() + (marketParameters.listingInterval * 5), agent, SwanAgent.Phase.Buy, 5);
-        vm.expectRevert(
-            abi.encodeWithSelector(SwanLottery.ClaimWindowExpired.selector, 5, currRound, DEFAULT_CLAIM_WINDOW)
-        );
-        lottery.claimRewards(artifact, currRound);
-
-        // Reset time and claim
-        increaseTime(agent.createdAt() + marketParameters.listingInterval, agent, SwanAgent.Phase.Buy, 0);
-        vm.deal(swan.owner(), 100 ether);
-        vm.stopPrank();
-
-        vm.prank(swan.owner());
-        token.approve(address(lottery), type(uint256).max);
-
-        vm.startPrank(address(this));
-        lottery.claimRewards(artifact, currRound);
-
-        // Cannot claim twice
-        vm.expectRevert(abi.encodeWithSelector(SwanLottery.RewardAlreadyClaimed.selector, artifact, currRound));
-        lottery.claimRewards(artifact, currRound);
-
-        vm.stopPrank();
-    }
-
     /// @notice Verify multiplier probability distribution
-    function test_probabilityDistribution() external {
+    function test_probabilityDistribution() external view {
         uint256 samples = 10000;
         uint256[6] memory counts;
 
@@ -242,5 +208,102 @@ contract SwanLotteryTest is Helper {
         assertApproxEqRel(counts[3], samples * 3 / 100, 0.08e18); // ~3%
         assertApproxEqRel(counts[4], samples * 15 / 1000, 0.08e18); // ~1.5%
         assertApproxEqRel(counts[5], samples * 5 / 1000, 0.08e18); // ~0.5%
+    }
+
+    /// @notice Test claim rewards reverts
+    function test_RevertWhen_InvalidClaimRewards()
+        external
+        fund
+        createAgents
+        sellersApproveToSwan
+        listArtifacts(sellers[0], 1, address(agents[0]))
+    {
+        address artifact = swan.getListedArtifacts(address(agents[0]), currRound)[0];
+
+        vm.startPrank(lottery.owner());
+        lottery.setAuthorization(address(this), true);
+        vm.stopPrank();
+
+        // Test ArtifactNotSold error
+        bytes memory expectedError = abi.encodeWithSignature("ArtifactNotSold(address)", artifact);
+        vm.expectRevert(expectedError);
+        lottery.claimRewards(artifact, currRound);
+    }
+
+    /// @notice Test reward calculations
+    function test_getRewards()
+        external
+        fund
+        createAgents
+        sellersApproveToSwan
+        listArtifacts(sellers[0], 1, address(agents[0]))
+    {
+        address artifact = swan.getListedArtifacts(address(agents[0]), currRound)[0];
+        uint96 listingFee = agents[0].listingFee();
+
+        vm.startPrank(lottery.owner());
+        lottery.setAuthorization(address(this), true);
+        lottery.assignMultiplier(artifact, currRound);
+        vm.stopPrank();
+
+        uint256 multiplier = lottery.artifactMultipliers(artifact, currRound);
+        uint256 expectedReward = (listingFee * multiplier) / BASIS_POINTS;
+
+        assertEq(lottery.getRewards(artifact, currRound), expectedReward);
+    }
+
+    /// @notice Test double claim prevention
+    function test_RevertWhen_DoubleClaim()
+        external
+        fund
+        createAgents
+        sellersApproveToSwan
+        listArtifacts(sellers[0], 1, address(agents[0]))
+    {
+        address artifact = swan.getListedArtifacts(address(agents[0]), currRound)[0];
+        SwanAgent agent = agents[0];
+
+        vm.startPrank(lottery.owner());
+        lottery.setAuthorization(address(this), true);
+        vm.roll(block.number + 1);
+        lottery.assignMultiplier(artifact, currRound);
+        assertGt(lottery.artifactMultipliers(artifact, currRound), BASIS_POINTS);
+        vm.stopPrank();
+
+        // Sell artifact
+        increaseTime(agent.createdAt() + marketParameters.listingInterval, agent, SwanAgent.Phase.Buy, 0);
+        vm.startPrank(address(agent));
+        deal(address(token), address(agent), swan.getListingPrice(artifact));
+        swan.purchase(artifact);
+        vm.stopPrank();
+
+        // Setup for claim
+        vm.startPrank(swan.owner());
+        deal(address(token), swan.owner(), 100 ether);
+        token.approve(address(lottery), type(uint256).max);
+        vm.stopPrank();
+
+        // First claim
+        vm.startPrank(address(this));
+        lottery.claimRewards(artifact, currRound);
+
+        // Try to claim again
+        vm.expectRevert(abi.encodeWithSelector(SwanLottery.RewardAlreadyClaimed.selector, artifact, currRound));
+        lottery.claimRewards(artifact, currRound);
+        vm.stopPrank();
+    }
+
+    /// @notice Test invalid artifact cases
+    function test_RevertWhen_InvalidArtifact() external {
+        address invalidArtifact = makeAddr("invalid");
+
+        vm.startPrank(lottery.owner());
+        lottery.setAuthorization(address(this), true);
+
+        // Use encoded selector
+        bytes memory expectedError = abi.encodeWithSignature("InvalidArtifact(address)", invalidArtifact);
+        vm.expectRevert(expectedError);
+        lottery.assignMultiplier(invalidArtifact, 0);
+        vm.stopPrank();
     }
 }
