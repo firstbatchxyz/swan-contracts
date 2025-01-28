@@ -1,6 +1,3 @@
-// SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.20;
-
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Swan} from "./Swan.sol";
 import {SwanAgent} from "./SwanAgent.sol";
@@ -8,40 +5,87 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract SwanLottery is Ownable {
-    // CONSTANTS
+    /*//////////////////////////////////////////////////////////////
+                               CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Used to calculate rewards and multipliers with proper decimal precision.
     uint256 public constant BASIS_POINTS = 10000;
 
-    // STORAGE
+    /*//////////////////////////////////////////////////////////////
+                                STORAGE
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Main Swan contract instance.
     Swan public immutable swan;
+    /// @notice Token used for rewards and payments.
     ERC20 public immutable token;
 
-    // number of rounds after listing that rewards can be claimed
+    /// @notice Number of rounds after listing that rewards can be claimed.
     uint256 public claimWindow;
 
-    // lottery data
+    /// @notice Maps artifact and round to its assigned multiplier.
     mapping(address artifact => mapping(uint256 round => uint256 multiplier)) public artifactMultipliers;
+    /// @notice Tracks whether rewards have been claimed for an artifact in a specific round.
     mapping(address artifact => mapping(uint256 round => bool claimed)) public rewardsClaimed;
+    /// @notice Maps addresses to their authorization status for lottery operations.
     mapping(address addr => bool isAllowed) public authorized;
 
-    // EVENTS
+    /*//////////////////////////////////////////////////////////////
+                                EVENTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Emitted when an address's authorization status is updated.
+    /// @param addr The address whose authorization was updated.
+    /// @param status The new authorization status.
     event AuthorizationUpdated(address indexed addr, bool status);
+
+    /// @notice Emitted when a multiplier is assigned to an artifact.
+    /// @param artifact The address of the artifact.
+    /// @param round The round number.
+    /// @param multiplier The assigned multiplier value.
     event MultiplierAssigned(address indexed artifact, uint256 indexed round, uint256 multiplier);
+
+    /// @notice Emitted when a reward is claimed for an artifact.
+    /// @param seller The address of the artifact seller.
+    /// @param artifact The address of the artifact.
+    /// @param round The round number.
+    /// @param reward The amount of reward claimed.
     event RewardClaimed(address indexed seller, address indexed artifact, uint256 indexed round, uint256 reward);
+
+    /// @notice Emitted when the claim window duration is updated.
+    /// @param oldWindow Previous claim window value.
+    /// @param newWindow New claim window value.
     event ClaimWindowUpdated(uint256 oldWindow, uint256 newWindow);
 
-    // ERRORS
+    /*//////////////////////////////////////////////////////////////
+                                ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Caller is not authorized for the operation.
     error Unauthorized(address caller);
+    /// @notice Invalid claim window value provided.
     error InvalidClaimWindow();
+    /// @notice Multiplier has already been assigned for this artifact and round.
     error MultiplierAlreadyAssigned(address artifact, uint256 round);
+    /// @notice Round number mismatch between current and required.
     error InvalidRound(uint256 current, uint256 required);
+    /// @notice Reward has already been claimed for this artifact and round.
     error RewardAlreadyClaimed(address artifact, uint256 round);
+    /// @notice Claim window has expired for the artifact.
     error ClaimWindowExpired(uint256 currentRound, uint256 listingRound, uint256 window);
+    /// @notice Invalid artifact address provided.
     error InvalidArtifact(address artifact);
+    /// @notice Artifact is not in sold status.
     error ArtifactNotSold(address artifact);
+    /// @notice No bonus available for the artifact with given multiplier.
     error NoBonusAvailable(address artifact, uint256 multiplier);
+    /// @notice No reward available for the artifact in the given round.
     error NoRewardAvailable(address artifact, uint256 round);
 
-    // MODIFIERS
+    /*//////////////////////////////////////////////////////////////
+                                 MODIFIERS
+    //////////////////////////////////////////////////////////////*/
     modifier onlyAuthorized() {
         if (!authorized[msg.sender]) revert Unauthorized(msg.sender);
         _;
