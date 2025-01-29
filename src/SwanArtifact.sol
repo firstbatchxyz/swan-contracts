@@ -20,8 +20,15 @@ contract SwanArtifactFactory {
 contract SwanArtifact is ERC721, Ownable {
     /// @notice Creation time of the token
     uint256 public createdAt;
+
     /// @notice Description of the token
     bytes public description;
+
+    /// @notice Swan operator address that cannot have its approval revoked
+    address public immutable swanOperator;
+
+    /// @notice Error thrown when attempting to revoke Swan's approval
+    error CannotRevokeSwan();
 
     /// @notice Constructor sets properties of the token.
     constructor(
@@ -33,11 +40,27 @@ contract SwanArtifact is ERC721, Ownable {
     ) ERC721(_name, _symbol) Ownable(_owner) {
         description = _description;
         createdAt = block.timestamp;
+        swanOperator = _operator;
 
         // owner is minted the token immediately
-        ERC721._safeMint(_owner, 1);
+        _safeMint(_owner, 1);
 
         // Swan (operator) is approved to by the owner immediately.
-        ERC721._setApprovalForAll(_owner, _operator, true);
+        _setApprovalForAll(_owner, _operator, true);
+    }
+
+    function setApprovalForAll(address operator, bool approved) public override {
+        if (operator == swanOperator && !approved) {
+            revert CannotRevokeSwan();
+        }
+        super.setApprovalForAll(operator, approved);
+    }
+
+    function approve(address to, uint256 tokenId) public override {
+        address owner = ownerOf(tokenId);
+        if (isApprovedForAll(owner, swanOperator) && to != swanOperator) {
+            revert CannotRevokeSwan();
+        }
+        super.approve(to, tokenId);
     }
 }

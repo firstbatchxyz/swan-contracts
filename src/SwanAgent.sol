@@ -168,7 +168,7 @@ contract SwanAgent is Ownable {
     /// @notice The minimum amount of money that the agent must leave within the contract.
     /// @dev minFundAmount should be `amountPerRound + oracleFee` to be able to make requests.
     function minFundAmount() public view returns (uint256) {
-        return amountPerRound + swan.getOracleFee();
+        return amountPerRound + 2 * swan.getOracleFee();
     }
 
     /// @notice Reads the best performing result for a given task id, and parses it as an array of addresses.
@@ -419,5 +419,23 @@ contract SwanAgent is Ownable {
         _checkRoundPhase(Phase.Withdraw);
 
         amountPerRound = _amountPerRound;
+    }
+
+    /// @notice Withdraws all available funds within allowable limits
+    /// @dev Withdraws maximum possible amount while respecting minFundAmount requirements
+    function withdrawAll() external onlyAuthorized {
+        (, Phase phase,) = getRoundPhase();
+        uint256 balance = treasury();
+
+        if (phase != Phase.Withdraw) {
+            // Must leave minFundAmount in non-withdraw phase
+            if (balance > minFundAmount()) {
+                uint256 withdrawable = balance - minFundAmount();
+                swan.token().transfer(owner(), withdrawable);
+            }
+        } else {
+            // Can withdraw everything in withdraw phase
+            swan.token().transfer(owner(), balance);
+        }
     }
 }
