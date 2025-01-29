@@ -186,7 +186,7 @@ contract SwanLotteryTest is Helper {
 
         for (uint256 i = 0; i < samples; i++) {
             bytes32 rand = keccak256(abi.encodePacked(i));
-            uint256 multiplier = lottery._selectMultiplier(uint256(rand) % lottery.BASIS_POINTS());
+            uint256 multiplier = lottery.selectMultiplier(uint256(rand) % lottery.BASIS_POINTS());
 
             if (multiplier == lottery.BASIS_POINTS()) counts[0]++; // 1x
 

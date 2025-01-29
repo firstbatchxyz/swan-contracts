@@ -1,9 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0
+pragma solidity ^0.8.20;
+
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Swan} from "./Swan.sol";
 import {SwanAgent} from "./SwanAgent.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
+/// @title Swan Lottery Contract
 contract SwanLottery is Ownable {
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
@@ -42,14 +46,14 @@ contract SwanLottery is Ownable {
 
     /// @notice Emitted when a multiplier is assigned to an artifact.
     /// @param artifact The address of the artifact.
-    /// @param round The round number.
+    /// @param round The round number. TODO: can be removed
     /// @param multiplier The assigned multiplier value.
     event MultiplierAssigned(address indexed artifact, uint256 indexed round, uint256 multiplier);
 
     /// @notice Emitted when a reward is claimed for an artifact.
     /// @param seller The address of the artifact seller.
     /// @param artifact The address of the artifact.
-    /// @param round The round number.
+    /// @param round The round number. TODO: can be removed
     /// @param reward The amount of reward claimed.
     event RewardClaimed(address indexed seller, address indexed artifact, uint256 indexed round, uint256 reward);
 
@@ -86,6 +90,7 @@ contract SwanLottery is Ownable {
     /*//////////////////////////////////////////////////////////////
                                  MODIFIERS
     //////////////////////////////////////////////////////////////*/
+
     modifier onlyAuthorized() {
         if (!authorized[msg.sender]) revert Unauthorized(msg.sender);
         _;
@@ -101,6 +106,7 @@ contract SwanLottery is Ownable {
     }
 
     /// @notice Assigns multiplier to a newly listed artifact
+    /// TODO: remove round number
     function assignMultiplier(address artifact, uint256 round) external onlyAuthorized {
         // verify listing exists
         Swan.ArtifactListing memory listing = swan.getListing(artifact);
@@ -114,15 +120,15 @@ contract SwanLottery is Ownable {
 
         // compute and store multiplier
         uint256 randomness = _computeRandomness(artifact, round);
-        uint256 multiplier = _selectMultiplier(randomness);
+        uint256 multiplier = selectMultiplier(randomness);
 
         artifactMultipliers[artifact][round] = multiplier;
         emit MultiplierAssigned(artifact, round, multiplier);
     }
 
     /// @notice Public view of multiplier computation
-    function computeMultiplier(address artifact, uint256 round) public view returns (uint256) {
-        return _selectMultiplier(_computeRandomness(artifact, round));
+    function computeMultiplier(address artifact, uint256 round) external view returns (uint256) {
+        return selectMultiplier(_computeRandomness(artifact, round));
     }
 
     /// @notice Compute randomness for multiplier
@@ -138,7 +144,7 @@ contract SwanLottery is Ownable {
     }
 
     /// @notice Select multiplier based on random value
-    function _selectMultiplier(uint256 rand) public pure returns (uint256) {
+    function selectMultiplier(uint256 rand) public pure returns (uint256) {
         // 75% chance of 1x
         if (rand < 7500) return BASIS_POINTS;
         // 15% chance of 2x
@@ -154,22 +160,22 @@ contract SwanLottery is Ownable {
     }
 
     /// @notice Claims rewards for sold artifacts within claim window
-    function claimRewards(address artifact, uint256 round) public onlyAuthorized {
-        // Check not already claimed
+    function claimRewards(address artifact, uint256 round) external onlyAuthorized {
+        // check not already claimed
         if (rewardsClaimed[artifact][round]) revert RewardAlreadyClaimed(artifact, round);
 
-        // Get listing and validate
+        // get listing and validate
         Swan.ArtifactListing memory listing = swan.getListing(artifact);
         if (listing.status != Swan.ArtifactStatus.Sold) revert ArtifactNotSold(artifact);
         if (listing.round != round) revert InvalidRound(listing.round, round);
 
-        // Check claim window using agent's round
+        // check claim window using agent's round
         (uint256 currentRound,,) = SwanAgent(listing.agent).getRoundPhase();
         if (currentRound > listing.round + claimWindow) {
             revert ClaimWindowExpired(currentRound, listing.round, claimWindow);
         }
 
-        // Check multiplier and compute reward
+        // check multiplier and compute reward
         uint256 multiplier = artifactMultipliers[artifact][round];
         if (multiplier <= BASIS_POINTS) revert NoBonusAvailable(artifact, multiplier);
 
@@ -181,25 +187,30 @@ contract SwanLottery is Ownable {
         emit RewardClaimed(listing.seller, artifact, round, reward);
     }
 
-    /// @notice Calculate potential reward
+    /// @notice Calculate potential reward for an artifact.
+    /// @param artifact The address of the artifact.
+    /// @param round The round number.
     function getRewards(address artifact, uint256 round) public view returns (uint256) {
         Swan.ArtifactListing memory listing = swan.getListing(artifact);
         uint256 multiplier = artifactMultipliers[artifact][round];
         return (listing.listingFee * multiplier) / BASIS_POINTS;
     }
 
-    /// @notice Update authorization status
+    /// @notice Update authorization status.
+    /// @dev Only owner can call.
+    /// @param addr The address to update authorization status for.
+    /// @param status The new authorization status.
     function setAuthorization(address addr, bool status) external onlyOwner {
         authorized[addr] = status;
         emit AuthorizationUpdated(addr, status);
     }
 
-    /// @notice Update claim window
-    /// @dev Only owner can call
+    /// @notice Update claim window.
+    /// @dev Only owner can call.
+    /// @param newWindow The new claim window duration.
     function setClaimWindow(uint256 newWindow) external onlyOwner {
         if (newWindow == 0) revert InvalidClaimWindow();
-        uint256 oldWindow = claimWindow;
+        emit ClaimWindowUpdated(claimWindow, newWindow);
         claimWindow = newWindow;
-        emit ClaimWindowUpdated(oldWindow, newWindow);
     }
 }
