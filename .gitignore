@@ -23,7 +23,10 @@ storage/
 .gas-snapshot/
 
 # Dotenv file
-.env
+.env*
+!.env.example
+
+# preset scripts
 .preset.sh
 
 # appleeeee
