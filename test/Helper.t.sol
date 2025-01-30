@@ -209,6 +209,13 @@ abstract contract Helper is Test {
     /// @notice Register generators and validators
     modifier registerOracles() {
         for (uint256 i = 0; i < generators.length; i++) {
+            deal(address(token), generators[i], stakes.generatorStakeAmount + 1 ether); // Add extra for gas
+        }
+        for (uint256 i = 0; i < validators.length; i++) {
+            deal(address(token), validators[i], stakes.validatorStakeAmount + 1 ether); // Add extra for gas
+        }
+
+        for (uint256 i = 0; i < generators.length; i++) {
             // approve the stake for the generator
             vm.startPrank(generators[i]);
             token.approve(address(oracleRegistry), stakes.generatorStakeAmount + stakes.validatorStakeAmount);

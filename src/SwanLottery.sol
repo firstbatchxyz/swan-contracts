@@ -28,10 +28,10 @@ contract SwanLottery is Ownable {
     /// @notice Number of rounds after listing that rewards can be claimed.
     uint256 public claimWindow;
 
-    /// @notice Maps artifact and round to its assigned multiplier.
-    mapping(address artifact => mapping(uint256 round => uint256 multiplier)) public artifactMultipliers;
-    /// @notice Tracks whether rewards have been claimed for an artifact in a specific round.
-    mapping(address artifact => mapping(uint256 round => bool claimed)) public rewardsClaimed;
+    /// @notice Maps artifact to its assigned multiplier.
+    mapping(address artifact => uint256 multiplier) public artifactMultipliers;
+    /// @notice Tracks whether rewards have been claimed for an artifact.
+    mapping(address artifact => bool claimed) public rewardsClaimed;
     /// @notice Maps addresses to their authorization status for lottery operations.
     mapping(address addr => bool isAllowed) public authorized;
 
@@ -46,16 +46,14 @@ contract SwanLottery is Ownable {
 
     /// @notice Emitted when a multiplier is assigned to an artifact.
     /// @param artifact The address of the artifact.
-    /// @param round The round number. TODO: can be removed
     /// @param multiplier The assigned multiplier value.
-    event MultiplierAssigned(address indexed artifact, uint256 indexed round, uint256 multiplier);
+    event MultiplierAssigned(address indexed artifact, uint256 multiplier);
 
     /// @notice Emitted when a reward is claimed for an artifact.
     /// @param seller The address of the artifact seller.
     /// @param artifact The address of the artifact.
-    /// @param round The round number. TODO: can be removed
     /// @param reward The amount of reward claimed.
-    event RewardClaimed(address indexed seller, address indexed artifact, uint256 indexed round, uint256 reward);
+    event RewardClaimed(address indexed seller, address indexed artifact, uint256 reward);
 
     /// @notice Emitted when the claim window duration is updated.
     /// @param oldWindow Previous claim window value.
@@ -72,10 +70,8 @@ contract SwanLottery is Ownable {
     error InvalidClaimWindow();
     /// @notice Multiplier has already been assigned for this artifact and round.
     error MultiplierAlreadyAssigned(address artifact, uint256 round);
-    /// @notice Round number mismatch between current and required.
-    error InvalidRound(uint256 current, uint256 required);
-    /// @notice Reward has already been claimed for this artifact and round.
-    error RewardAlreadyClaimed(address artifact, uint256 round);
+    /// @notice Reward has already been claimed for this artifact.
+    error RewardAlreadyClaimed(address artifact);
     /// @notice Claim window has expired for the artifact.
     error ClaimWindowExpired(uint256 currentRound, uint256 listingRound, uint256 window);
     /// @notice Invalid artifact address provided.
@@ -84,8 +80,8 @@ contract SwanLottery is Ownable {
     error ArtifactNotSold(address artifact);
     /// @notice No bonus available for the artifact with given multiplier.
     error NoBonusAvailable(address artifact, uint256 multiplier);
-    /// @notice No reward available for the artifact in the given round.
-    error NoRewardAvailable(address artifact, uint256 round);
+    /// @notice No reward available for the artifact.
+    error NoRewardAvailable(address artifact);
 
     /*//////////////////////////////////////////////////////////////
                                  MODIFIERS
@@ -105,41 +101,23 @@ contract SwanLottery is Ownable {
         claimWindow = _claimWindow;
     }
 
-    /// @notice Assigns multiplier to a newly listed artifact
-    /// TODO: remove round number
-    function assignMultiplier(address artifact, uint256 round) external onlyAuthorized {
-        // verify listing exists
-        Swan.ArtifactListing memory listing = swan.getListing(artifact);
-        if (listing.seller == address(0)) revert InvalidArtifact(artifact);
-        if (listing.round != round) revert InvalidRound(listing.round, round);
-
-        // check multiplier not already assigned
-        if (artifactMultipliers[artifact][round] != 0) {
-            revert MultiplierAlreadyAssigned(artifact, round);
-        }
-
-        // compute and store multiplier
-        uint256 randomness = _computeRandomness(artifact, round);
-        uint256 multiplier = selectMultiplier(randomness);
-
-        artifactMultipliers[artifact][round] = multiplier;
-        emit MultiplierAssigned(artifact, round, multiplier);
-    }
-
     /// @notice Public view of multiplier computation
-    function computeMultiplier(address artifact, uint256 round) external view returns (uint256) {
-        return selectMultiplier(_computeRandomness(artifact, round));
+    function computeMultiplier(address artifact) external view returns (uint256) {
+        return selectMultiplier(_computeRandomness(artifact));
     }
 
     /// @notice Compute randomness for multiplier
-    function _computeRandomness(address artifact, uint256 round) internal view returns (uint256) {
-        bytes32 randomness = blockhash(block.number - 1);
+    function _computeRandomness(address artifact) internal view returns (uint256) {
+        Swan.ArtifactListing memory listing = swan.getListing(artifact);
+
+        uint256 stateTaskId = SwanAgent(listing.agent).oracleStateRequests(listing.round);
+        bytes memory oracleOutput = swan.coordinator().getBestResponse(stateTaskId).output;
+
+        uint256 purchaseTaskId = SwanAgent(listing.agent).oraclePurchaseRequests(listing.round);
+        bytes memory metadata = swan.coordinator().getBestResponse(purchaseTaskId).metadata;
+
         return uint256(
-            keccak256(
-                abi.encodePacked(
-                    randomness, artifact, round, swan.getListing(artifact).seller, swan.getListing(artifact).agent
-                )
-            )
+            keccak256(abi.encodePacked(oracleOutput, metadata, artifact, listing.round, listing.seller, listing.agent))
         ) % BASIS_POINTS;
     }
 
@@ -160,39 +138,42 @@ contract SwanLottery is Ownable {
     }
 
     /// @notice Claims rewards for sold artifacts within claim window
-    function claimRewards(address artifact, uint256 round) external onlyAuthorized {
-        // check not already claimed
-        if (rewardsClaimed[artifact][round]) revert RewardAlreadyClaimed(artifact, round);
-
-        // get listing and validate
+    function claimRewards(address artifact) external onlyAuthorized {
+        // Get listing first to access its data
         Swan.ArtifactListing memory listing = swan.getListing(artifact);
+        if (listing.seller == address(0)) revert InvalidArtifact(artifact);
         if (listing.status != Swan.ArtifactStatus.Sold) revert ArtifactNotSold(artifact);
-        if (listing.round != round) revert InvalidRound(listing.round, round);
 
-        // check claim window using agent's round
+        // Check if already claimed
+        if (rewardsClaimed[artifact]) revert RewardAlreadyClaimed(artifact);
+
+        // Check claim window using agent's round
         (uint256 currentRound,,) = SwanAgent(listing.agent).getRoundPhase();
         if (currentRound > listing.round + claimWindow) {
             revert ClaimWindowExpired(currentRound, listing.round, claimWindow);
         }
 
-        // check multiplier and compute reward
-        uint256 multiplier = artifactMultipliers[artifact][round];
+        // Calculate multiplier on demand instead of pre-assigning
+        uint256 multiplier = selectMultiplier(_computeRandomness(artifact));
         if (multiplier <= BASIS_POINTS) revert NoBonusAvailable(artifact, multiplier);
 
-        uint256 reward = getRewards(artifact, round);
-        if (reward == 0) revert NoRewardAvailable(artifact, round);
+        uint256 reward = (listing.listingFee * multiplier) / BASIS_POINTS;
+        if (reward == 0) revert NoRewardAvailable(artifact);
 
-        rewardsClaimed[artifact][round] = true;
+        // Store multiplier for record keeping/viewing
+        artifactMultipliers[artifact] = multiplier;
+        rewardsClaimed[artifact] = true;
+
+        // Transfer reward
         token.transferFrom(swan.owner(), listing.seller, reward);
-        emit RewardClaimed(listing.seller, artifact, round, reward);
+        emit RewardClaimed(listing.seller, artifact, reward);
     }
 
     /// @notice Calculate potential reward for an artifact.
     /// @param artifact The address of the artifact.
-    /// @param round The round number.
-    function getRewards(address artifact, uint256 round) public view returns (uint256) {
+    function getRewards(address artifact) public view returns (uint256) {
         Swan.ArtifactListing memory listing = swan.getListing(artifact);
-        uint256 multiplier = artifactMultipliers[artifact][round];
+        uint256 multiplier = artifactMultipliers[artifact];
         return (listing.listingFee * multiplier) / BASIS_POINTS;
     }
 
