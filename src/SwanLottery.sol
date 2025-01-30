@@ -113,9 +113,10 @@ contract SwanLottery is Ownable {
         Swan.ArtifactListing memory listing = swan.getListing(artifact);
         uint256 taskId = SwanAgent(listing.agent).oracleStateRequests(listing.round);
         bytes memory oracleOutput = swan.coordinator().getBestResponse(taskId).output;
+        bytes memory metadata = swan.coordinator().getBestResponse(taskId).metadata;
 
         return uint256(
-            keccak256(abi.encodePacked(oracleOutput, artifact, listing.round, listing.seller, listing.agent))
+            keccak256(abi.encodePacked(oracleOutput, metadata, artifact, listing.round, listing.seller, listing.agent))
         ) % BASIS_POINTS;
     }
 
