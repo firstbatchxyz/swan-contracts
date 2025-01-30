@@ -111,9 +111,12 @@ contract SwanLottery is Ownable {
     /// @notice Compute randomness for multiplier
     function _computeRandomness(address artifact) internal view returns (uint256) {
         Swan.ArtifactListing memory listing = swan.getListing(artifact);
-        uint256 taskId = SwanAgent(listing.agent).oracleStateRequests(listing.round);
-        bytes memory oracleOutput = swan.coordinator().getBestResponse(taskId).output;
-        bytes memory metadata = swan.coordinator().getBestResponse(taskId).metadata;
+
+        uint256 stateTaskId = SwanAgent(listing.agent).oracleStateRequests(listing.round);
+        bytes memory oracleOutput = swan.coordinator().getBestResponse(stateTaskId).output;
+
+        uint256 purchaseTaskId = SwanAgent(listing.agent).oraclePurchaseRequests(listing.round);
+        bytes memory metadata = swan.coordinator().getBestResponse(purchaseTaskId).metadata;
 
         return uint256(
             keccak256(abi.encodePacked(oracleOutput, metadata, artifact, listing.round, listing.seller, listing.agent))
