@@ -48,49 +48,22 @@ contract SwanLotteryTest is Helper {
         token.approve(address(swan.coordinator()), oracleFee);
         vm.stopPrank();
 
-        // Register generators first
-        for (uint256 i = 0; i < generators.length; i++) {
-            vm.startPrank(generators[i]);
-            deal(address(token), generators[i], stakes.generatorStakeAmount);
-            token.approve(address(oracleRegistry), stakes.generatorStakeAmount);
-            oracleRegistry.register(LLMOracleKind.Generator);
-            vm.stopPrank();
-        }
-
-        // Add validator to whitelist and register BEFORE any oracle interactions
-        vm.startPrank(dria);
-        address[] memory validatorArray = new address[](1);
-        validatorArray[0] = validators[0];
-        oracleRegistry.addToWhitelist(validatorArray);
-        vm.stopPrank();
-
-        vm.startPrank(validators[0]);
-        deal(address(token), validators[0], stakes.validatorStakeAmount);
-        token.approve(address(oracleRegistry), stakes.validatorStakeAmount);
-        oracleRegistry.register(LLMOracleKind.Validator);
-        vm.stopPrank();
-
-        // Now make oracle request
         vm.prank(agentOwners[0]);
         agent.oracleStateRequest(input, models);
 
         // Process responses
         safeRespond(generators[0], TEST_OUTPUT, taskId);
         safeRespond(generators[1], TEST_OUTPUT, taskId);
+
+        // Manual validator score
+        delete scores;
+        scores.push(70);
+        scores.push(70);
+
         safeValidate(validators[0], taskId);
 
         // Verify task completed
-        (
-            address requester,
-            bytes32 protocol,
-            LLMOracleTaskParameters memory parameters,
-            LLMOracleTask.TaskStatus status,
-            uint256 generatorFee,
-            uint256 validatorFee,
-            uint256 platformFee,
-            bytes memory taskInput,
-            bytes memory taskModels
-        ) = swan.coordinator().requests(taskId);
+        (,,, LLMOracleTask.TaskStatus status,,,,,) = swan.coordinator().requests(taskId);
 
         assertEq(uint8(status), uint8(LLMOracleTask.TaskStatus.Completed));
     }
@@ -337,11 +310,22 @@ contract SwanLotteryTest is Helper {
 
         // First claim
         vm.startPrank(address(this));
-        lottery.claimRewards(artifact);
+        uint256 multiplier = lottery.computeMultiplier(artifact);
 
-        // Try to claim again
-        vm.expectRevert(abi.encodeWithSelector(SwanLottery.RewardAlreadyClaimed.selector, artifact));
-        lottery.claimRewards(artifact);
+        if (multiplier <= BASIS_POINTS) {
+            // Test revert case for 1x multiplier
+            vm.expectRevert(abi.encodeWithSelector(SwanLottery.NoBonusAvailable.selector, artifact, multiplier));
+            lottery.claimRewards(artifact);
+        } else {
+            // First claim should succeed for >1x multiplier
+            lottery.claimRewards(artifact);
+            assertEq(lottery.artifactMultipliers(artifact), multiplier);
+            assertEq(lottery.getRewards(artifact), (agent.listingFee() * multiplier) / BASIS_POINTS);
+
+            // Try to claim again - should revert with RewardAlreadyClaimed
+            vm.expectRevert(abi.encodeWithSelector(SwanLottery.RewardAlreadyClaimed.selector, artifact));
+            lottery.claimRewards(artifact);
+        }
         vm.stopPrank();
     }
 
