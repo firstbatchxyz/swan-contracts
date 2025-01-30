@@ -32,7 +32,32 @@ contract SwanLotteryTest is Helper {
 
     /// @notice Helper to setup oracle task
     function setupOracleTask(SwanAgent agent, uint256 taskId) internal {
-        // Move to withdraw phase
+        // Move to Buy phase for purchase request
+        increaseTime(agent.createdAt() + marketParameters.listingInterval, agent, SwanAgent.Phase.Buy, 0);
+
+        uint256 oracleFee = swan.getOracleFee();
+
+        // Fund agent for oracle fee (need double since we have two requests)
+        vm.startPrank(address(agent));
+        deal(address(token), address(agent), oracleFee * 2);
+        token.approve(address(swan.coordinator()), oracleFee * 2);
+        vm.stopPrank();
+
+        // Setup scores array first for our validations
+        delete scores;
+        scores.push(70); // Score for first generator
+        scores.push(70); // Score for second generator
+
+        // Setup purchase request first (in Buy phase)
+        vm.prank(agentOwners[0]);
+        agent.oraclePurchaseRequest(input, models);
+
+        // Handle purchase responses
+        safeRespond(generators[0], TEST_OUTPUT, taskId);
+        safeRespond(generators[1], TEST_OUTPUT, taskId);
+        safeValidate(validators[0], taskId);
+
+        // Move to Withdraw phase for state request
         increaseTime(
             agent.createdAt() + marketParameters.listingInterval + marketParameters.buyInterval,
             agent,
@@ -40,32 +65,20 @@ contract SwanLotteryTest is Helper {
             0
         );
 
-        uint256 oracleFee = swan.getOracleFee();
-
-        // Fund agent for oracle fee
-        vm.startPrank(address(agent));
-        deal(address(token), address(agent), oracleFee);
-        token.approve(address(swan.coordinator()), oracleFee);
-        vm.stopPrank();
-
+        // Setup state request
         vm.prank(agentOwners[0]);
         agent.oracleStateRequest(input, models);
 
-        // Process responses
-        safeRespond(generators[0], TEST_OUTPUT, taskId);
-        safeRespond(generators[1], TEST_OUTPUT, taskId);
+        safeRespond(generators[0], TEST_OUTPUT, taskId + 1);
+        safeRespond(generators[1], TEST_OUTPUT, taskId + 1);
+        safeValidate(validators[0], taskId + 1);
 
-        // Manual validator score
-        delete scores;
-        scores.push(70);
-        scores.push(70);
+        // Verify both tasks completed
+        (,,, LLMOracleTask.TaskStatus purchaseStatus,,,,,) = swan.coordinator().requests(taskId);
+        (,,, LLMOracleTask.TaskStatus stateStatus,,,,,) = swan.coordinator().requests(taskId + 1);
 
-        safeValidate(validators[0], taskId);
-
-        // Verify task completed
-        (,,, LLMOracleTask.TaskStatus status,,,,,) = swan.coordinator().requests(taskId);
-
-        assertEq(uint8(status), uint8(LLMOracleTask.TaskStatus.Completed));
+        assertEq(uint8(purchaseStatus), uint8(LLMOracleTask.TaskStatus.Completed));
+        assertEq(uint8(stateStatus), uint8(LLMOracleTask.TaskStatus.Completed));
     }
 
     /// @notice Owner can set authorization status

@@ -409,22 +409,6 @@
   },
   {
     "type": "error",
-    "name": "InvalidRound",
-    "inputs": [
-      {
-        "name": "current",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "required",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ]
-  },
-  {
-    "type": "error",
     "name": "MultiplierAlreadyAssigned",
     "inputs": [
       {

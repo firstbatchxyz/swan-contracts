@@ -70,8 +70,6 @@ contract SwanLottery is Ownable {
     error InvalidClaimWindow();
     /// @notice Multiplier has already been assigned for this artifact and round.
     error MultiplierAlreadyAssigned(address artifact, uint256 round);
-    /// @notice Round number mismatch between current and required.
-    error InvalidRound(uint256 current, uint256 required);
     /// @notice Reward has already been claimed for this artifact.
     error RewardAlreadyClaimed(address artifact);
     /// @notice Claim window has expired for the artifact.
