@@ -238,12 +238,18 @@ contract SwanTest is Helper {
         vm.prank(_agentOwnerToFail);
         _agentToFail.purchase();
 
+        address[] memory purchasedArtifacts = _agentToFail.getInventory(1); // Round 1
+        assertTrue(purchasedArtifacts.length == 1, "Should purchase exactly one artifact");
+        assertTrue(purchasedArtifacts[0] == output[1], "Should have purchased artifact 2");
+
         // Record logs and execute purchase
         Vm.Log[] memory logs = vm.getRecordedLogs();
         bool foundArtifact1Skip = false;
         bool foundArtifact3Skip = false;
 
         bytes32 skipEventSig = 0x3c44a811ea05c98efb27db6d3cbc9d4e7b0eb204b81047d92adfa387d3b0e818;
+        bytes32 soldEventSig = 0x7b1dae0d1aa5992cbf93242e4c807f1f27f69b51255335200caa21c7a6e5ab61;
+        bool foundArtifact2Sold = false;
 
         for (uint256 i = 0; i < logs.length; i++) {
             if (logs[i].topics.length > 0 && logs[i].topics[0] == skipEventSig) {
@@ -255,9 +261,19 @@ contract SwanTest is Helper {
                     foundArtifact3Skip = true;
                 }
             }
+
+            if (logs[i].topics.length > 0 && logs[i].topics[0] == soldEventSig) {
+                // ArtifactSold(address owner, address agent, address artifact, uint256 price)
+                address artifact = address(uint160(uint256(logs[i].topics[3])));
+                if (artifact == output[1]) {
+                    // artifact2 address
+                    foundArtifact2Sold = true;
+                }
+            }
         }
 
         assertTrue(foundArtifact1Skip, "artifact 1 should be skipped");
+        assertTrue(foundArtifact2Sold, "artifact 2 should be purchased");
         assertTrue(foundArtifact3Skip, "artifact 3 should be skipped");
     }
 
