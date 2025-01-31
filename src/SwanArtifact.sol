@@ -24,10 +24,13 @@ contract SwanArtifact is ERC721, Ownable {
     bytes public description;
 
     /// @notice Constructor sets properties of the token.
-    constructor(string memory _name, string memory _symbol, bytes memory _description, address _owner)
-        ERC721(_name, _symbol)
-        Ownable(_owner)
-    {
+    constructor(
+        string memory _name,
+        string memory _symbol,
+        bytes memory _description,
+        address _owner,
+        address _operator
+    ) ERC721(_name, _symbol) Ownable(_owner) {
         description = _description;
         createdAt = block.timestamp;
 

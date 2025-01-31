@@ -5,6 +5,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOracleTask.sol";
 import {Swan, SwanAgentPurchaseOracleProtocol, SwanAgentStateOracleProtocol} from "./Swan.sol";
 import {SwanMarketParameters} from "./SwanManager.sol";
+import {SwanArtifact} from "./SwanArtifact.sol";
 
 /// @notice Factory contract to deploy Agent contracts.
 /// @dev This saves from contract space for Swan.
@@ -50,6 +51,9 @@ contract SwanAgent is Ownable {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice Emitted when an artifact is skipped.
+    event ItemSkipped(address indexed agent, address indexed artifact);
 
     /// @notice Emitted when a state update request is made.
     event StateRequest(uint256 indexed taskId, uint256 indexed round);
@@ -255,24 +259,37 @@ contract SwanAgent is Ownable {
 
         // read oracle result using the latest task id for this round
         bytes memory output = oracleResult(taskId);
+        // TODO: add try-catch (When solidity supports) to handle more data when revert
         address[] memory artifacts = abi.decode(output, (address[]));
 
         // we purchase each artifact returned
         for (uint256 i = 0; i < artifacts.length; i++) {
             address artifact = artifacts[i];
-
-            // must not exceed the roundly buy-limit
             uint256 price = swan.getListingPrice(artifact);
-            spendings[round] += price;
-            if (spendings[round] > amountPerRound) {
-                revert BuyLimitExceeded(spendings[round], amountPerRound);
+
+            // skip artifacts that exceed budget instead of reverting
+            if (spendings[round] + price > amountPerRound) {
+                emit ItemSkipped(address(this), artifact);
+                continue;
             }
 
-            // add to inventory
-            inventory[round].push(artifact);
+            // check approval
+            SwanArtifact artifactContract = SwanArtifact(artifact);
+            address seller = swan.getListing(artifact).seller;
 
-            // make the actual purchase
-            swan.purchase(artifact);
+            if (!artifactContract.isApprovedForAll(seller, address(swan))) {
+                emit ItemSkipped(address(this), artifact);
+                continue;
+            }
+
+            // try purchase for other potential failures
+            try swan.purchase(artifact) {
+                spendings[round] += price;
+                inventory[round].push(artifact);
+            } catch {
+                emit ItemSkipped(address(this), artifact);
+                continue;
+            }
         }
 
         // update taskId as completed
@@ -437,5 +454,11 @@ contract SwanAgent is Ownable {
             // Can withdraw everything in withdraw phase
             swan.token().transfer(owner(), balance);
         }
+    }
+
+    /// @notice Get the inventory for a specific round
+    /// @param round The queried round
+    function getInventory(uint256 round) public view returns (address[] memory) {
+        return inventory[round];
     }
 }

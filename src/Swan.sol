@@ -42,7 +42,6 @@ contract Swan is SwanManager, UUPSUpgradeable {
 
     /// @notice Invalid price for the artifact.
     error InvalidPrice(uint256 price);
-    error InsufficientBudget(uint256 required, uint256 available);
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -342,12 +341,6 @@ contract Swan is SwanManager, UUPSUpgradeable {
         // can only the agent can purchase the artifact
         if (listing.agent != msg.sender) {
             revert Unauthorized(msg.sender);
-        }
-
-        // check budget before proceeding
-        uint256 agentBalance = token.balanceOf(msg.sender);
-        if (agentBalance < listing.price) {
-            revert InsufficientBudget(listing.price, agentBalance);
         }
 
         // update artifact status to be sold
