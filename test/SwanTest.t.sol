@@ -142,7 +142,7 @@ contract SwanTest is Helper {
     }
 
     /// @notice Agent cannot spend more than amountPerRound per round
-    function test_RevertWhen_PurchaseMoreThanAmountPerRound()
+    function test_PurchaseOnlyWithinAmountPerRound()
         external
         fund
         createAgents
@@ -172,8 +172,109 @@ contract SwanTest is Helper {
         safeValidate(validators[0], 1);
 
         vm.prank(_agentOwnerToFail);
-        vm.expectRevert(abi.encodeWithSelector(SwanAgent.BuyLimitExceeded.selector, artifactPrice * 2, amountPerRound));
         _agentToFail.purchase();
+
+        // Verify spending didn't exceed amountPerRound
+        assertLe(_agentToFail.spendings(currRound), _agentToFail.amountPerRound());
+
+        // Get purchased artifacts
+        address[] memory purchasedArtifacts = _agentToFail.getInventory(currRound);
+        assertLt(purchasedArtifacts.length, output.length, "Should not purchase all artifacts if over budget");
+    }
+
+    function test_PurchaseWithSkippedItems()
+        external
+        fund
+        createAgents
+        sellersApproveToSwan
+        addValidatorsToWhitelist
+        registerOracles
+        listArtifacts(sellers[0], marketParameters.maxArtifactCount, address(agents[0]))
+    {
+        address _agentOwnerToFail = agentOwners[0];
+        SwanAgent _agentToFail = agents[0];
+
+        // Get artifacts and encode output early
+        address[] memory output = swan.getListedArtifacts(address(_agentToFail), currRound);
+        bytes memory encodedOutput = abi.encode(output);
+        address artifact1Addr = output[0];
+        address artifact3Addr = output[2];
+
+        // Fund agent with WETH for purchases
+        deal(address(token), address(_agentToFail), _agentToFail.amountPerRound() * 3);
+
+        // Approve WETH transfers
+        vm.startPrank(address(_agentToFail));
+        token.approve(address(swan), type(uint256).max);
+        vm.stopPrank();
+
+        vm.recordLogs();
+
+        // Revoke approval for artifact 1
+        vm.prank(sellers[0]);
+        SwanArtifact(artifact1Addr).setApprovalForAll(address(swan), false);
+
+        // Move to next round
+        uint256 nextRoundTime = _agentToFail.createdAt() + marketParameters.listingInterval
+            + marketParameters.buyInterval + marketParameters.withdrawInterval;
+        vm.warp(nextRoundTime);
+
+        // Relist with higher price
+        uint256 overPrice = _agentToFail.amountPerRound() - 1;
+        vm.prank(sellers[0]);
+        swan.relist(output[1], address(_agentToFail), overPrice);
+
+        // Move to buy phase
+        vm.warp(nextRoundTime + marketParameters.listingInterval + 1);
+
+        // Make purchase request
+        vm.prank(_agentOwnerToFail);
+        _agentToFail.oraclePurchaseRequest(input, models);
+
+        safeRespond(generators[0], encodedOutput, 1);
+        safeRespond(generators[1], encodedOutput, 1);
+        safeValidate(validators[0], 1);
+
+        vm.prank(_agentOwnerToFail);
+        _agentToFail.purchase();
+
+        address[] memory purchasedArtifacts = _agentToFail.getInventory(1); // Round 1
+        assertTrue(purchasedArtifacts.length == 1, "Should purchase exactly one artifact");
+        assertTrue(purchasedArtifacts[0] == output[1], "Should have purchased artifact 2");
+
+        // Record logs and execute purchase
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bool foundArtifact1Skip = false;
+        bool foundArtifact3Skip = false;
+
+        bytes32 skipEventSig = 0x3c44a811ea05c98efb27db6d3cbc9d4e7b0eb204b81047d92adfa387d3b0e818;
+        bytes32 soldEventSig = 0x7b1dae0d1aa5992cbf93242e4c807f1f27f69b51255335200caa21c7a6e5ab61;
+        bool foundArtifact2Sold = false;
+
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].topics.length > 0 && logs[i].topics[0] == skipEventSig) {
+                address artifact = address(uint160(uint256(logs[i].topics[2])));
+
+                if (artifact == artifact1Addr) {
+                    foundArtifact1Skip = true;
+                } else if (artifact == artifact3Addr) {
+                    foundArtifact3Skip = true;
+                }
+            }
+
+            if (logs[i].topics.length > 0 && logs[i].topics[0] == soldEventSig) {
+                // ArtifactSold(address owner, address agent, address artifact, uint256 price)
+                address artifact = address(uint160(uint256(logs[i].topics[3])));
+                if (artifact == output[1]) {
+                    // artifact2 address
+                    foundArtifact2Sold = true;
+                }
+            }
+        }
+
+        assertTrue(foundArtifact1Skip, "artifact 1 should be skipped");
+        assertTrue(foundArtifact2Sold, "artifact 2 should be purchased");
+        assertTrue(foundArtifact3Skip, "artifact 3 should be skipped");
     }
 
     /// @notice Agent can purchase
