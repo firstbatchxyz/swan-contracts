@@ -302,7 +302,7 @@ contract SwanAgent is Ownable {
     /// @param _amount amount to withdraw.
     /// @dev If the current phase is `Withdraw` agent owner can withdraw any amount of tokens.
     /// @dev If the current phase is not `Withdraw` agent owner has to leave at least `minFundAmount` in the contract.
-    function withdraw(uint96 _amount) public onlyAuthorized {
+    function withdraw(uint256 _amount) public onlyAuthorized {
         (, Phase phase,) = getRoundPhase();
 
         // if we are not in Withdraw phase, we must leave

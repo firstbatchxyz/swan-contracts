@@ -314,4 +314,13 @@ contract HelperConfig is Script {
             }
         }
     }
+
+    function getSwanAddresses() public view returns (address proxy, address impl) {
+        string memory path = string.concat("deployments/", Strings.toString(block.chainid), ".json");
+        string memory contractAddresses = vm.readFile(path);
+
+        require(vm.keyExistsJson(contractAddresses, "$.Swan"), "Swan not deployed");
+        proxy = vm.parseJsonAddress(contractAddresses, "$.Swan.proxyAddr");
+        impl = vm.parseJsonAddress(contractAddresses, "$.Swan.implAddr");
+    }
 }
