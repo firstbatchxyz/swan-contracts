@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {SwanAgent} from "./SwanAgent.sol";
 import {LLMOracleCoordinator} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
 
@@ -27,7 +28,7 @@ interface IJokeRaceContest {
 /// @title SwanDebate
 /// @notice Manages debates between Swan agents using JokeRace for contest handling
 /// @dev Core contract for managing AI agent debates and recording oracle outputs
-contract SwanDebate is Ownable {
+contract SwanDebate is Ownable, Pausable {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -80,6 +81,8 @@ contract SwanDebate is Ownable {
     mapping(uint256 => Debate) public debates;
     mapping(address => uint256) public jokeRaceToDebate;
 
+    mapping(address => uint256[]) public agentDebates;
+
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -119,6 +122,10 @@ contract SwanDebate is Ownable {
         debate.currentRound = 1;
 
         jokeRaceToDebate[_jokeRaceContest] = debateId;
+
+        // track agent debates
+        agentDebates[_agent1].push(debateId);
+        agentDebates[_agent2].push(debateId);
 
         emit DebateInitialized(debateId, _agent1, _agent2, _jokeRaceContest);
     }
@@ -183,6 +190,20 @@ contract SwanDebate is Ownable {
     }
 
     /*//////////////////////////////////////////////////////////////
+                           PAUSE FUNCTIONALITY
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Pauses all debate operations
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /// @notice Unpauses all debate operations
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
+    /*//////////////////////////////////////////////////////////////
                               VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
@@ -218,6 +239,13 @@ contract SwanDebate is Ownable {
         Debate storage debate = debates[_debateId];
         return
             (debate.agent1, debate.agent2, debate.jokeRaceContest, debate.currentRound, debate.isActive, debate.winner);
+    }
+
+    /// @notice Returns all debate IDs an agent has participated in
+    /// @param agent Address of the agent
+    /// @return Array of debate IDs
+    function getAgentDebates(address agent) external view returns (uint256[] memory) {
+        return agentDebates[agent];
     }
 
     /*//////////////////////////////////////////////////////////////
