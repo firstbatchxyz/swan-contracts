@@ -76,6 +76,7 @@ contract SwanDebate is Ownable, Pausable {
     /// @notice Thrown when an invalid proposals exist in a debate
     error InvalidProposalsInDebate();
 
+    /// @notice Thrown when an invalid number of proposals exist in a debate
     error InvalidProposalCount(uint256 count);
 
     /*//////////////////////////////////////////////////////////////
