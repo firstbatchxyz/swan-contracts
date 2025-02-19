@@ -73,16 +73,17 @@ contract SwanDebate is Ownable, Pausable {
     /// @notice Thrown when trying to use an unregistered agent
     error AgentNotRegistered();
 
-    /// @notice Thrown when an invalid number of proposals exist in a debate
+    /// @notice Thrown when an invalid proposals exist in a debate
     error InvalidProposalsInDebate();
+
+    error InvalidProposalCount(uint256 count);
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
     /// @notice Emitted when a new agent is registered
     /// @param agentId ID of the registered agent
-    /// @param systemPrompt System prompt for the agent
-    event AgentRegistered(uint256 indexed agentId, string systemPrompt);
+    event AgentRegistered(uint256 indexed agentId);
 
     /// @notice Emitted when a new debate is initialized
     /// @param contest Address of the JokeRace contest
@@ -95,10 +96,7 @@ contract SwanDebate is Ownable, Pausable {
     /// @param round Current round number
     /// @param agentId ID of agent providing output
     /// @param taskId Oracle task identifier
-    /// @param output Raw output data from oracle
-    event OracleOutputRecorded(
-        address indexed contest, uint256 indexed round, uint256 indexed agentId, uint256 taskId, bytes output
-    );
+    event OracleOutputRecorded(address indexed contest, uint256 indexed round, uint256 indexed agentId, uint256 taskId);
 
     /// @notice Emitted when a debate is concluded
     /// @param contest Address of the JokeRace contest
@@ -117,7 +115,6 @@ contract SwanDebate is Ownable, Pausable {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     struct Agent {
-        string systemPrompt;
         bool isRegistered;
         uint256 wins;
     }
@@ -136,12 +133,14 @@ contract SwanDebate is Ownable, Pausable {
 
     /// @notice Contains data for a single debate round
     /// @dev Stores oracle outputs and completion status for both agents
+    /// @dev Both agents must provide output before round is marked complete
+    /// @dev Round completion increments currentRound in the parent Debate
     struct RoundData {
+        bool roundComplete; // whether both agents have submitted outputs
         uint256 agent1TaskId; // oracle task id for agent1's response
         uint256 agent2TaskId; // oracle task id for agent2's response
         bytes agent1Output; // oracle output for agent1
         bytes agent2Output; // oracle output for agent2
-        bool roundComplete; // whether both agents have submitted outputs
     }
 
     /// @notice Oracle coordinator contract for AI responses
@@ -159,9 +158,32 @@ contract SwanDebate is Ownable, Pausable {
     mapping(uint256 agentId => address[] contests) public agentDebates;
 
     /*//////////////////////////////////////////////////////////////
+                             MODIFIERS 
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Ensures debate is active (has current round and no winner)
+    /// @param contest Address of the debate contest
+    modifier onlyActiveDebate(address contest) {
+        Debate storage debate = debates[contest];
+        if (debate.currentRound == 0 || debate.winnerId != 0) {
+            revert DebateNotActive(contest);
+        }
+        _;
+    }
+
+    /// @notice Ensures contest is in expected state
+    /// @param contest Address of the contest
+    /// @param expectedState The state the contest should be in
+    modifier onlyContestState(address contest, IJokeRaceContest.ContestState expectedState) {
+        IJokeRaceContest jokeContest = IJokeRaceContest(contest);
+        if (jokeContest.state() != expectedState) {
+            revert ContestInvalidState(jokeContest.state(), expectedState);
+        }
+        _;
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Initializes the SwanDebate contract
     /// @param _coordinator Address of the LLMOracleCoordinator contract
     /// @dev Sets the immutable coordinator reference and initializes ownership
@@ -173,13 +195,12 @@ contract SwanDebate is Ownable, Pausable {
                               CORE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @notice Register a new agent with their system prompt
-    /// @param _systemPrompt The system prompt to define agent's behavior
     /// @return The ID of the newly registered agent
-    function registerAgent(string calldata _systemPrompt) external onlyOwner returns (uint256) {
+    function registerAgent() external onlyOwner returns (uint256) {
         uint256 agentId = nextAgentId++;
-        agents[agentId] = Agent({systemPrompt: _systemPrompt, isRegistered: true, wins: 0});
+        agents[agentId] = Agent({isRegistered: true, wins: 0});
 
-        emit AgentRegistered(agentId, _systemPrompt);
+        emit AgentRegistered(agentId);
         return agentId;
     }
 
@@ -208,7 +229,7 @@ contract SwanDebate is Ownable, Pausable {
 
         uint256[] memory proposalIds = contest.getAllProposalIds();
         if (proposalIds.length != 2) {
-            revert("Debate must have exactly two proposals");
+            revert InvalidProposalCount(proposalIds.length);
         }
 
         debate.agent1Id = _agent1Id;
@@ -232,7 +253,6 @@ contract SwanDebate is Ownable, Pausable {
     /// @param _input Input data for the oracle request
     /// @param _models Model parameters for the oracle
     /// @param _oracleParameters Oracle task configuration parameters
-    /// @return taskId The ID of the created oracle task
     /// @dev Only the owner can request outputs and the contest must be Active
     function requestOracleOutput(
         address _contest,
@@ -240,23 +260,20 @@ contract SwanDebate is Ownable, Pausable {
         bytes calldata _input,
         bytes calldata _models,
         LLMOracleTaskParameters calldata _oracleParameters
-    ) external onlyOwner whenNotPaused returns (uint256 taskId) {
+    )
+        external
+        onlyOwner
+        whenNotPaused
+        onlyActiveDebate(_contest)
+        onlyContestState(_contest, IJokeRaceContest.ContestState.Active)
+        returns (uint256 taskId)
+    {
         if (!agents[_agentId].isRegistered) revert AgentNotRegistered();
 
         Debate storage debate = debates[_contest];
-        if (debate.currentRound == 0 || debate.winnerId != 0) revert DebateNotActive(_contest);
         if (_agentId != debate.agent1Id && _agentId != debate.agent2Id) revert InvalidAgent(_agentId);
 
-        IJokeRaceContest contest = IJokeRaceContest(_contest);
-        if (contest.state() != IJokeRaceContest.ContestState.Active) {
-            revert ContestInvalidState(contest.state(), IJokeRaceContest.ContestState.Active);
-        }
-
-        // Combine system prompt with input
-        bytes memory combinedInput = abi.encodePacked(agents[_agentId].systemPrompt, "\n\n", _input);
-
-        taskId = coordinator.request(DEBATE_PROTOCOL, combinedInput, _models, _oracleParameters);
-
+        taskId = coordinator.request(DEBATE_PROTOCOL, _input, _models, _oracleParameters);
         emit OracleRequested(_contest, debate.currentRound, _agentId, taskId);
     }
 
@@ -270,16 +287,12 @@ contract SwanDebate is Ownable, Pausable {
         external
         onlyOwner
         whenNotPaused
+        onlyActiveDebate(_contest)
+        onlyContestState(_contest, IJokeRaceContest.ContestState.Active)
     {
         if (!agents[_agentId].isRegistered) revert AgentNotRegistered();
 
         Debate storage debate = debates[_contest];
-        if (debate.currentRound == 0 || debate.winnerId != 0) revert DebateNotActive(_contest);
-
-        IJokeRaceContest contest = IJokeRaceContest(_contest);
-        if (contest.state() != IJokeRaceContest.ContestState.Active) {
-            revert ContestInvalidState(contest.state(), IJokeRaceContest.ContestState.Active);
-        }
 
         if (_taskId == 0) revert TaskNotRequested();
 
@@ -299,33 +312,29 @@ contract SwanDebate is Ownable, Pausable {
             debate.currentRound++;
         }
 
-        emit OracleOutputRecorded(_contest, debate.currentRound, _agentId, _taskId, _output);
+        emit OracleOutputRecorded(_contest, debate.currentRound, _agentId, _taskId);
     }
 
     /// @notice Terminates a debate and determines the winner based on JokeRace voting
     /// @param _contest Address of the JokeRace contest
     /// @dev Only owner can terminate and contest must be in Completed state
-    function terminateDebate(address _contest) external onlyOwner whenNotPaused {
+    function terminateDebate(address _contest)
+        external
+        onlyOwner
+        whenNotPaused
+        onlyActiveDebate(_contest)
+        onlyContestState(_contest, IJokeRaceContest.ContestState.Completed)
+    {
         Debate storage debate = debates[_contest];
-        if (debate.currentRound == 0 || debate.winnerId != 0) revert DebateNotActive(_contest);
-
-        IJokeRaceContest contest = IJokeRaceContest(_contest);
-        if (contest.state() != IJokeRaceContest.ContestState.Completed) {
-            revert ContestInvalidState(contest.state(), IJokeRaceContest.ContestState.Completed);
-        }
-
         if (debate.agent1ProposalId == 0 || debate.agent2ProposalId == 0) {
             revert InvalidProposalsInDebate();
         }
 
+        IJokeRaceContest contest = IJokeRaceContest(_contest);
         (uint256 winnerId, uint256 winningVotes) = _determineWinner(contest, debate);
-        if (winnerId == 0) {
-            revert InvalidAgent(0);
-        }
 
         agents[winnerId].wins++;
         debate.winnerId = winnerId;
-        debate.currentRound = 0;
 
         emit DebateTerminated(_contest, winnerId, winningVotes);
     }
@@ -412,14 +421,10 @@ contract SwanDebate is Ownable, Pausable {
         int256 netVotes1 = int256(forVotes1) - int256(againstVotes1);
         int256 netVotes2 = int256(forVotes2) - int256(againstVotes2);
 
-        if (netVotes1 > netVotes2) {
+        if (netVotes1 >= netVotes2) {
             return (debate.agent1Id, uint256(netVotes1));
-        } else if (netVotes2 > netVotes1) {
-            return (debate.agent2Id, uint256(netVotes2));
         } else {
-            // Implement a tie-breaking rule
-            winnerId = debate.agent1Id;
-            highestVotes = uint256(netVotes1);
+            return (debate.agent2Id, uint256(netVotes2));
         }
     }
 }
