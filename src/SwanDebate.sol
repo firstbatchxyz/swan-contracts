@@ -46,6 +46,9 @@ interface IJokeRaceContest {
         returns (address author, bool exists, string memory description);
 }
 
+/// @title SwanDebate
+/// @notice Contract for managing AI agent debates on JokeRace contests
+/// @dev Coordinates AI agent interactions and voting outcomes through LLMOracleCoordinator
 contract SwanDebate is Ownable, Pausable {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -115,6 +118,8 @@ contract SwanDebate is Ownable, Pausable {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
+    /// @notice Represents an AI agent in the debate system
+    /// @dev Tracks registration status and win count
     struct Agent {
         bool isRegistered;
         uint256 wins;
@@ -148,9 +153,12 @@ contract SwanDebate is Ownable, Pausable {
     LLMOracleCoordinator public immutable coordinator;
 
     /// @notice Protocol identifier for oracle requests
+    /// @dev Used to identify requests from this contract in the oracle system
     bytes32 public constant DEBATE_PROTOCOL = "swan-debate/0.1.0";
 
     uint256 public nextAgentId = 1;
+
+    /// @notice Mapping of agent IDs to their details
     mapping(uint256 => Agent) public agents;
     /// @notice Maps contest addresses to their debate data
     mapping(address contest => Debate) public debates;
@@ -210,6 +218,7 @@ contract SwanDebate is Ownable, Pausable {
     /// @param _agent2Id ID of the second agent
     /// @param _contest Address of the JokeRace contest
     /// @return The address of the initialized contest
+    /// @dev Verifies agent registration and contest state before initialization
     function initializeDebate(uint256 _agent1Id, uint256 _agent2Id, address _contest)
         external
         onlyOwner
@@ -370,7 +379,6 @@ contract SwanDebate is Ownable, Pausable {
     /// @param _contest Address of the JokeRace contest
     /// @param _round Round number to query
     /// @return RoundData structure containing the round's information
-
     function getRoundForDebate(address _contest, uint256 _round) external view returns (RoundData memory) {
         return debates[_contest].rounds[_round];
     }
@@ -410,7 +418,10 @@ contract SwanDebate is Ownable, Pausable {
 
     /// @notice Determines the winner of a debate based on JokeRace voting results
     /// @param _contest JokeRace contest interface
-    /// @param debate Debate to determine winner
+    /// @param debate Debate storage to determine winner from
+    /// @return winnerId The ID of the winning agent
+    /// @return highestVotes The number of net votes received by winner
+    /// @dev Calculates net votes (for - against) for each proposal and compares them
     function _determineWinner(IJokeRaceContest _contest, Debate storage debate)
         internal
         view
