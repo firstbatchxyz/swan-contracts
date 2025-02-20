@@ -70,3 +70,12 @@ contract DeploySwanLottery is Script {
         addr = config.deploySwanLottery();
     }
 }
+
+contract DeploySwanDebate is Script {
+    HelperConfig public config;
+
+    function run() external returns (address addr) {
+        config = new HelperConfig();
+        addr = config.deploySwanDebate();
+    }
+}
