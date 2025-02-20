@@ -204,8 +204,8 @@ contract SwanDebate is Ownable, Pausable {
                               CORE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @notice Register a new agent with their system prompt
-    /// @return The ID of the newly registered agent
-    function registerAgent() external onlyOwner returns (uint256) {
+    /// @return newAgentId The ID of the newly registered agent
+    function registerAgent() external onlyOwner returns (uint256 newAgentId) {
         uint256 agentId = nextAgentId++;
         agents[agentId] = Agent({isRegistered: true, wins: 0});
 
@@ -217,13 +217,13 @@ contract SwanDebate is Ownable, Pausable {
     /// @param _agent1Id ID of the first agent
     /// @param _agent2Id ID of the second agent
     /// @param _contest Address of the JokeRace contest
-    /// @return The address of the initialized contest
+    /// @return contestAddress The address of the initialized contest
     /// @dev Verifies agent registration and contest state before initialization
     function initializeDebate(uint256 _agent1Id, uint256 _agent2Id, address _contest)
         external
         onlyOwner
         whenNotPaused
-        returns (address)
+        returns (address contestAddress)
     {
         if (!agents[_agent1Id].isRegistered || !agents[_agent2Id].isRegistered) {
             revert AgentNotRegistered();
@@ -291,9 +291,8 @@ contract SwanDebate is Ownable, Pausable {
     /// @param _contest Address of the JokeRace contest
     /// @param _agentId ID of the agent providing output
     /// @param _taskId ID of the oracle task
-    /// @param _output Output data from the oracle
     /// @dev Only owner can record outputs and both agents must provide output to complete a round
-    function recordOracleOutput(address _contest, uint256 _agentId, uint256 _taskId, bytes calldata _output)
+    function recordOracleOutput(address _contest, uint256 _agentId, uint256 _taskId)
         external
         onlyOwner
         whenNotPaused
@@ -309,10 +308,10 @@ contract SwanDebate is Ownable, Pausable {
         RoundData storage round = debate.rounds[debate.currentRound];
         if (_agentId == debate.agent1Id) {
             round.agent1TaskId = _taskId;
-            round.agent1Output = _output;
+            round.agent1Output = coordinator.getBestResponse(_taskId).output;
         } else if (_agentId == debate.agent2Id) {
             round.agent2TaskId = _taskId;
-            round.agent2Output = _output;
+            round.agent2Output = coordinator.getBestResponse(_taskId).output;
         } else {
             revert InvalidAgent(_agentId);
         }
@@ -370,23 +369,23 @@ contract SwanDebate is Ownable, Pausable {
     //////////////////////////////////////////////////////////////*/
     /// @notice Get an agent's information by their ID
     /// @param _agentId The ID of the agent to query
-    /// @return The Agent struct containing the agent's information
-    function getAgent(uint256 _agentId) external view returns (Agent memory) {
+    /// @return agentInfo The Agent struct containing the agent's information
+    function getAgent(uint256 _agentId) external view returns (Agent memory agentInfo) {
         return agents[_agentId];
     }
 
     /// @notice Retrieves round data for a specific debate round
     /// @param _contest Address of the JokeRace contest
     /// @param _round Round number to query
-    /// @return RoundData structure containing the round's information
-    function getRoundForDebate(address _contest, uint256 _round) external view returns (RoundData memory) {
+    /// @return roundData RoundData structure containing the round's information
+    function getRoundForDebate(address _contest, uint256 _round) external view returns (RoundData memory roundData) {
         return debates[_contest].rounds[_round];
     }
 
     /// @notice Gets the latest round data for a debate
     /// @param _contest Address of the JokeRace contest
-    /// @return RoundData structure containing the current round's information
-    function getLatestRoundForDebate(address _contest) external view returns (RoundData memory) {
+    /// @return latestRound RoundData structure containing the current round's information
+    function getLatestRoundForDebate(address _contest) external view returns (RoundData memory latestRound) {
         return debates[_contest].rounds[debates[_contest].currentRound];
     }
 
@@ -407,8 +406,8 @@ contract SwanDebate is Ownable, Pausable {
 
     /// @notice Gets all debates an agent has participated in
     /// @param _agentId ID of the agent
-    /// @return Array of contest addresses the agent participated in
-    function getAgentDebates(uint256 _agentId) external view returns (address[] memory) {
+    /// @return agentContests Array of contest addresses the agent participated in
+    function getAgentDebates(uint256 _agentId) external view returns (address[] memory agentContests) {
         return agentDebates[_agentId];
     }
 

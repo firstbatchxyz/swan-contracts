@@ -13,32 +13,7 @@ import {console} from "forge-std/Test.sol";
 import {MockJokeRaceContest} from "./mock/MockJokeRaceContest.sol";
 import {MockOracle} from "./mock/MockOracle.sol";
 
-contract SwanDebateTest is Test {
-    SwanDebate public debate;
-    MockJokeRaceContest public jokeRace;
-    MockOracle public oracle;
-    LLMOracleCoordinator public coordinator;
-
-    address public owner;
-
-    event DebateInitialized(address indexed contest, uint256 indexed agent1Id, uint256 indexed agent2Id);
-    event OracleOutputRecorded(
-        address indexed contest, uint256 indexed round, uint256 indexed agentId, uint256 taskId, bytes output
-    );
-    event DebateTerminated(address indexed contest, uint256 winnerId, uint256 finalVotes);
-
-    function setUp() public {
-        owner = address(this);
-
-        oracle = new MockOracle();
-        jokeRace = new MockJokeRaceContest();
-        coordinator = new LLMOracleCoordinator();
-
-        debate = new SwanDebate(address(coordinator));
-    }
-}
-
-contract SwanDebateIntegrationTest is Helper {
+contract SwanDebateTest is Helper {
     SwanDebate public debate;
     MockJokeRaceContest public jokeRace;
     LLMOracleCoordinator public coordinator;
@@ -160,7 +135,7 @@ contract SwanDebateIntegrationTest is Helper {
 
         vm.warp(block.timestamp + 1);
 
-        debate.recordOracleOutput(contest, agentId, taskId, TEST_OUTPUT);
+        debate.recordOracleOutput(contest, agentId, taskId);
     }
 
     function test_CompleteDebateFlow() external fund addValidatorsToWhitelist registerOracles {
