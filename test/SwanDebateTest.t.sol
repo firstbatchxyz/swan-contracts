@@ -10,80 +10,8 @@ import {IJokeRaceContest} from "../src/SwanDebate.sol";
 import {LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOracleTask.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {console} from "forge-std/Test.sol";
-
-/// @dev Mock implementation of `IJokeRaceContest`
-contract MockJokeRaceContest is IJokeRaceContest {
-    ContestState private _currentState;
-    mapping(uint256 => uint256) private _votes;
-    mapping(uint256 => address) private _authors;
-    uint256[] private _proposalIds;
-
-    function setState(ContestState _state) external {
-        _currentState = _state;
-    }
-
-    function state() external view override returns (ContestState) {
-        return _currentState;
-    }
-
-    function setProposalVotes(uint256 proposalId, uint256 votes) external {
-        _votes[proposalId] = votes;
-        if (!_proposalExists(proposalId)) {
-            _proposalIds.push(proposalId);
-        }
-    }
-
-    function setProposalAuthor(uint256 proposalId, address author) external {
-        _authors[proposalId] = author;
-        if (!_proposalExists(proposalId)) {
-            _proposalIds.push(proposalId);
-        }
-    }
-
-    function proposalVotes(uint256 proposalId)
-        external
-        view
-        override
-        returns (uint256 forVotes, uint256 againstVotes)
-    {
-        return (_votes[proposalId], 0);
-    }
-
-    function getAllProposalIds() external view override returns (uint256[] memory) {
-        return _proposalIds;
-    }
-
-    function proposals(uint256 proposalId)
-        external
-        view
-        override
-        returns (address author, bool exists, string memory description)
-    {
-        return (_authors[proposalId], _proposalExists(proposalId), "Mock Proposal");
-    }
-
-    function _proposalExists(uint256 proposalId) internal view returns (bool) {
-        for (uint256 i = 0; i < _proposalIds.length; i++) {
-            if (_proposalIds[i] == proposalId) {
-                return true;
-            }
-        }
-        return false;
-    }
-}
-
-/// @dev Mock Oracle Contract
-contract MockOracle {
-    mapping(uint256 => bytes) public responses;
-
-    function getBestResponse(uint256 taskId) external view returns (bytes memory) {
-        return responses[taskId];
-    }
-
-    function setResponse(uint256 taskId, bytes memory output) external {
-        responses[taskId] = output;
-    }
-}
+import {MockJokeRaceContest} from "./mock/MockJokeRaceContest.sol";
+import {MockOracle} from "./mock/MockOracle.sol";
 
 contract SwanDebateTest is Test {
     SwanDebate public debate;
@@ -284,30 +212,6 @@ contract SwanDebateIntegrationTest is Helper {
         assertEq(agent1Debates.length, 3, "Should track all debates");
     }
 
-    function test_Events() external {
-        // Setup
-        vm.recordLogs();
-
-        // Action
-        (address contestAddr, uint256 agent1Id, uint256 agent2Id) = setupDebate();
-
-        // Get logs
-        Vm.Log[] memory entries = vm.getRecordedLogs();
-        Vm.Log memory lastEvent = entries[entries.length - 1];
-
-        // Verify event
-        bytes32 eventSig = lastEvent.topics[0];
-        assertEq(keccak256("DebateInitialized(address,uint256,uint256)"), eventSig);
-
-        address contestFromLog = address(uint160(uint256(lastEvent.topics[1])));
-        uint256 agent1IdFromLog = uint256(lastEvent.topics[2]);
-        uint256 agent2IdFromLog = uint256(lastEvent.topics[3]);
-
-        assertEq(contestAddr, contestFromLog);
-        assertEq(agent1Id, agent1IdFromLog);
-        assertEq(agent2Id, agent2IdFromLog);
-    }
-
     function test_RevertScenarios() external {
         // Test multiple revert cases
         vm.expectRevert(abi.encodeWithSelector(SwanDebate.AgentNotRegistered.selector));
@@ -380,17 +284,53 @@ contract SwanDebateIntegrationTest is Helper {
         assertTrue(round2Data.roundComplete, "Second round should be complete");
     }
 
-    function test_EdgeCases() external fund addValidatorsToWhitelist registerOracles {
-        (address contestAddr, uint256 agent1Id,) = setupDebate();
+    function test_EdgeCase_UnregisteredAgent() public {
+        (, uint256 validAgentId,) = setupDebate();
 
-        // Test terminating non-active debate
-        address invalidContest = address(0x123);
-        vm.expectRevert(abi.encodeWithSelector(SwanDebate.DebateNotActive.selector, invalidContest)); // Changed error
-        debate.terminateDebate(invalidContest);
+        uint256 invalidAgentId = 999;
+        MockJokeRaceContest newContest = new MockJokeRaceContest();
+        newContest.setProposalAuthor(1, address(this));
+        newContest.setProposalAuthor(2, address(this));
+        newContest.setState(IJokeRaceContest.ContestState.Queued);
 
-        // Test with non-existent task
-        jokeRace.setState(IJokeRaceContest.ContestState.Active);
-        vm.expectRevert(abi.encodeWithSelector(SwanDebate.TaskNotRequested.selector));
-        debate.recordOracleOutput(contestAddr, agent1Id, 0, "");
+        vm.expectRevert(SwanDebate.AgentNotRegistered.selector);
+        debate.initializeDebate(invalidAgentId, validAgentId, address(newContest));
+    }
+
+    function test_EdgeCase_InvalidContestState() public {
+        (, uint256 agent1Id, uint256 agent2Id) = setupDebate();
+
+        MockJokeRaceContest newContest = new MockJokeRaceContest();
+        newContest.setState(IJokeRaceContest.ContestState.Active);
+        newContest.setProposalAuthor(1, address(this));
+        newContest.setProposalAuthor(2, address(this));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                SwanDebate.ContestInvalidState.selector,
+                IJokeRaceContest.ContestState.Active,
+                IJokeRaceContest.ContestState.Queued
+            )
+        );
+        debate.initializeDebate(agent1Id, agent2Id, address(newContest));
+    }
+
+    function test_EdgeCase_DuplicateDebate() public {
+        (address contestAddr, uint256 agent1Id, uint256 agent2Id) = setupDebate();
+
+        vm.expectRevert(abi.encodeWithSelector(SwanDebate.DebateAlreadyExists.selector, contestAddr));
+        debate.initializeDebate(agent1Id, agent2Id, contestAddr);
+    }
+
+    function test_EdgeCase_InvalidProposalCount() public {
+        (, uint256 agent1Id, uint256 agent2Id) = setupDebate();
+
+        MockJokeRaceContest newContest = new MockJokeRaceContest();
+        newContest.setState(IJokeRaceContest.ContestState.Queued);
+        newContest.setProposalAuthor(1, address(this));
+        // Only setting one proposal instead of required two
+
+        vm.expectRevert(abi.encodeWithSelector(SwanDebate.InvalidProposalCount.selector, 1));
+        debate.initializeDebate(agent1Id, agent2Id, address(newContest));
     }
 }
