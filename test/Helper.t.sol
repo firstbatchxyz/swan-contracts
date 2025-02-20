@@ -80,7 +80,7 @@ abstract contract Helper is Test {
     error InvalidNonceFromHelperTest(uint256 taskId, uint256 nonce, uint256 computedNonce, address caller);
 
     // @dev Set parameters for the test
-    function setUp() public deployment {
+    function setUp() public virtual deployment {
         dria = vm.addr(1);
         validators = [vm.addr(2), vm.addr(3), vm.addr(4)];
         generators = [vm.addr(5), vm.addr(6), vm.addr(7)];

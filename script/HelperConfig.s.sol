@@ -13,6 +13,7 @@ import {SwanAgentFactory} from "../src/SwanAgent.sol";
 import {SwanArtifactFactory} from "../src/SwanArtifact.sol";
 import {Swan} from "../src/Swan.sol";
 import {SwanLottery} from "../src/SwanLottery.sol";
+import {SwanDebate} from "../src/SwanDebate.sol";
 import {WETH9} from "../test/contracts/WETH9.sol";
 
 struct Stakes {
@@ -221,6 +222,27 @@ contract HelperConfig is Script {
         writeContractAddress("SwanLottery", address(lottery));
 
         return address(lottery);
+    }
+
+    function deploySwanDebate() external returns (address) {
+        // read deployed contract addresses
+        string memory dir = "deployments/";
+        string memory fileName = Strings.toString(block.chainid);
+        string memory path = string.concat(dir, fileName, ".json");
+        string memory contractAddresses = vm.readFile(path);
+
+        bool isCoordinatorExist = vm.keyExistsJson(contractAddresses, "$.LLMOracleCoordinator");
+        require(isCoordinatorExist, "Please deploy LLMOracleCoordinator first");
+
+        address coordinatorProxy = vm.parseJsonAddress(contractAddresses, "$.LLMOracleCoordinator.proxyAddr");
+        require(coordinatorProxy != address(0), "Coordinator proxy address is invalid");
+
+        vm.startBroadcast();
+        SwanDebate debate = new SwanDebate(coordinatorProxy);
+        vm.stopBroadcast();
+
+        writeContractAddress("SwanDebate", address(debate));
+        return address(debate);
     }
 
     function writeContractAddress(string memory name, address addr) internal {
