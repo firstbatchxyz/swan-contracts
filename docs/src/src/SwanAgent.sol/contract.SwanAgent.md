@@ -1,5 +1,5 @@
 # SwanAgent
-[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/c710fa9077819fe0de37f142a56e70d195d44ae7/src/SwanAgent.sol)
+[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/bfe781b2164eee89471f97a79bc2f74b5941e7bc/src/SwanAgent.sol)
 
 **Inherits:**
 Ownable
@@ -186,7 +186,11 @@ function minFundAmount() public view returns (uint256);
 
 ### oracleResult
 
-Reads the best performing result for a given task id, and parses it as an array of addresses.
+Reads the best performing result for a given task id.
+
+*Will revert with `TaskNotRequested` if the task id is 0.*
+
+*Will revert if no response has been made for the given task id yet.*
 
 
 ```solidity

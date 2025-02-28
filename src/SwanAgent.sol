@@ -175,7 +175,9 @@ contract SwanAgent is Ownable {
         return amountPerRound + 2 * swan.getOracleFee();
     }
 
-    /// @notice Reads the best performing result for a given task id, and parses it as an array of addresses.
+    /// @notice Reads the best performing result for a given task id.
+    /// @dev Will revert with `TaskNotRequested` if the task id is 0.
+    /// @dev Will revert if no response has been made for the given task id yet.
     /// @param taskId task id to be read
     function oracleResult(uint256 taskId) public view returns (bytes memory) {
         // task id must be non-zero
