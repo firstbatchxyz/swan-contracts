@@ -1,5 +1,5 @@
 # SwanAgent
-[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/cfde01cea84285a32250228f5358ebebeb0fc85a/src/SwanAgent.sol)
+[Git Source](https://github.com/firstbatchxyz/swan-contracts/blob/c710fa9077819fe0de37f142a56e70d195d44ae7/src/SwanAgent.sol)
 
 **Inherits:**
 Ownable
@@ -281,13 +281,13 @@ Function to withdraw the tokens from the contract.
 
 
 ```solidity
-function withdraw(uint96 _amount) public onlyAuthorized;
+function withdraw(uint256 _amount) public onlyAuthorized;
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`_amount`|`uint96`|amount to withdraw.|
+|`_amount`|`uint256`|amount to withdraw.|
 
 
 ### treasury
@@ -431,7 +431,41 @@ function setAmountPerRound(uint256 _amountPerRound) external onlyOwner;
 |`_amountPerRound`|`uint256`|new amountPerRound.|
 
 
+### withdrawAll
+
+Withdraws all available funds within allowable limits
+
+*Withdraws maximum possible amount while respecting minFundAmount requirements*
+
+
+```solidity
+function withdrawAll() external onlyAuthorized;
+```
+
+### getInventory
+
+Get the inventory for a specific round
+
+
+```solidity
+function getInventory(uint256 round) public view returns (address[] memory);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`round`|`uint256`|The queried round|
+
+
 ## Events
+### ItemSkipped
+Emitted when an artifact is skipped.
+
+
+```solidity
+event ItemSkipped(address indexed agent, address indexed artifact);
+```
+
 ### StateRequest
 Emitted when a state update request is made.
 

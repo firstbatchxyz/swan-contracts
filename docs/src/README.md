@@ -58,6 +58,15 @@ forge build
 > npm install @openzeppelin/upgrades-core@latest -g
 > ```
 
+> [!TIP]
+>
+> If at any point the submodules become "dirty" (e.g. there are local changes that you are unaware of) you can do:
+>
+> ```sh
+> git submodule deinit -f .
+> git submodule update --init --recursive --checkout
+> ```
+
 ### Updates
 
 To update contracts to the latest library versions, use:
@@ -85,7 +94,7 @@ Use the command below to create your keystore. The command will prompt for your 
 cast wallet import <WALLET_NAME> --interactive
 ```
 
-> [!ALERT]
+> [!WARNING]
 >
 > Note that you will need to enter the password when you use this keystore.
 
@@ -105,7 +114,7 @@ To interact with the blockchain, we require an RPC endpoint. You can get one fro
 
 You will use this endpoint for the commands that interact with the blockchain, such as deploying and upgrading; or while doing fork tests.
 
-### Deploy & Verify Contract
+### Deploy Contract
 
 Deploy the contract with:
 
@@ -116,9 +125,23 @@ forge script ./script/Deploy.s.sol:Deploy<CONTRACT_NAME> \
 --broadcast
 ```
 
-You can see deployed contract addresses under the `deployment/<chainid>.json`
+You can see deployed contract addresses under the [`deployments/<chainid>.json`](./deployments/) folder.
 
-You can verify the contract during deployment by adding the verification arguments as well:
+You will need the contract ABIs to interact with them as well, thankfully there is a nice short-hand command to export that:
+
+```sh
+forge inspect <CONTRACT_NAME> abi > ./deployments/abis/<CONTRACT_NAME>.json
+```
+
+### Verify Contract
+
+Verification requires the following values, based on which provider you are using:
+
+- **Provider**: can accept any of `etherscan`, `blockscout`, `sourcify`, `oklink` or `custom` for more fine-grained stuff.
+- **URL**: based on the chosen provider, its URL, e.g. `https://base-sepolia.blockscout.com/api/` for `blockscout` on Base Sepolia
+- **API Key**: an API key from the chosen provider, must be stored as `ETHERSCAN_API_KEY` in environment no matter whicih provider it is!.
+
+You can actually verify the contract during deployment by adding the verification arguments as well:
 
 ```sh
 forge script ./script/Deploy.s.sol:Deploy<CONTRACT_NAME> \
@@ -126,58 +149,58 @@ forge script ./script/Deploy.s.sol:Deploy<CONTRACT_NAME> \
 --account <WALLET_NAME> \
 --broadcast \
 --verify --verifier blockscout \
---verifier-url <VERIFIER_URL>
+--verifier-url <VERIFIER_URL> \
+--chain-id 8453
 ```
 
-You can verify an existing contract with:
+Alternatively, you can verify an existing contract (perhaps deployed from a factory) with the following command:
 
 ```sh
 forge verify-contract <CONTRACT_ADDRESS> ./src/<CONTRACT_NAME>.sol:<CONTRACT_NAME> \
---verifier blockscout \
---verifier-url <VERIFIER_URL>
+--verifier blockscout --verifier-url <VERIFIER_URL> \
+--etherscan-api-key <API_KEY> --chain-id 8453
 ```
 
-Note that the `--verifier-url` value should be the target explorer's homepage URL. Some example URLs are:
-
-- `https://base.blockscout.com/api/` for Base (Mainnet)
-- `https://base-sepolia.blockscout.com/api/` for Base Sepolia (Testnet)
-
-> [!NOTE]
->
-> URL should not contain the API key! Foundry will read your `ETHERSCAN_API_KEY` from environment.
-
-> [!NOTE]
->
-> The `--verifier` can accept any of the following: `etherscan`, `blockscout`, `sourcify`, `oklink`. We are using Blockscout most of the time.
-
-### Generate ABIs
-
-To interact with the contracts, you need the contract ABIs. We store the ABIs under the [`abis`](./abis/) folder, and these can be generated using the following script:
-
-```sh
-./export-abis.sh
-```
+The chain ID is 8453 for Base Mainnet, and 84532 for Base Sepolia.
 
 ### Upgrade Contract
 
 Upgrading an existing contract is done as per the instructions in [openzeppelin-foundry-upgrades](https://github.com/OpenZeppelin/openzeppelin-foundry-upgrades) repository.
-The `--sender <ADDRESS>` field is required when deploying a contract,
+
+First, we create a new contract with its name as `ContractNameV2`, and then we execute the following command:
+
+```sh
+forge script ./script/Deploy.s.sol:Upgrade<CONTRACT_NAME> \
+--rpc-url <RPC_URL> \
+--account <WALLET_NAME> --broadcast \
+--sender <WALLET_ADDRESS> \
+--verify --verifier blockscout \
+--verifier-url <VERIFIER_URL>
+```
+
+> [!NOTE]
+>
+> The `--sender <ADDRESS>` field is mandatory when deploying a contract, it can be obtained with the command below, which will prompt for keystore password:
+>
+> ```sh
+> cast wallet address --account <WALLET_NAME>
+> ```
 
 ## Testing & Diagnostics
 
 Run tests on local network:
 
 ```sh
-forge test
+FOUNDRY_PROFILE=test forge test
 
 # or -vvv to show reverts in detail
-forge test -vvv
+FOUNDRY_PROFILE=test forge test -vvv
 ```
 
 or fork an existing chain and run the tests on it:
 
 ```sh
-forge test --rpc-url <RPC_URL>
+FOUNDRY_PROFILE=test forge test --rpc-url <RPC_URL>
 ```
 
 ### Code Coverage
@@ -194,22 +217,12 @@ Alternatively, you can see a summarized text-only output as well:
 forge coverage --no-match-coverage "(test|mock|script)"
 ```
 
-### Storage Layout
-
-You can print storage layouts for each contract using:
-
-```sh
-./storage.sh
-```
-
-The resulting Markdown files will be created under the [`storage`](./storage/) directory.
-
 ### Gas Snapshot
 
 You can examine the gas usage metrics using the command:
 
 ```sh
-forge snapshot --snap ./test/.gas-snapshot
+FOUNDRY_PROFILE=test forge snapshot --snap ./test/.gas-snapshot
 ```
 
 You can see the snapshot `.gas-snapshot` file in the current directory.
@@ -225,7 +238,7 @@ forge fmt ./src/**/*.sol ./script/**/*.sol
 If you have solhint installed, you can lint all contracts with:
 
 ```sh
-solhint 'contracts/**/*.sol'
+solhint 'src/**/*.sol' 'script/**/*.sol'
 ```
 
 ## Documentation
