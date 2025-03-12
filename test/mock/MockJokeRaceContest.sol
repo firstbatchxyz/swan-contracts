@@ -9,7 +9,7 @@ contract MockJokeRaceContest is IJokeRaceContest {
     mapping(uint256 => uint256) private _votes;
     mapping(uint256 => address) private _authors;
     uint256[] private _proposalIds;
-    uint256[] private _sortedProposals; // ✅ Store sorted proposals
+    uint256[] private _sortedProposals;
 
     function setState(ContestState _state) external {
         _currentState = _state;
