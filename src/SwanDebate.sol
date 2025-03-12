@@ -9,6 +9,8 @@ import {LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOrac
 
 /// @notice Interface for JokeRace contest interactions
 /// @dev Provides functions to interact with JokeRace contests and query their state
+/// @notice Interface for JokeRace contest interactions
+/// @dev Provides functions to interact with JokeRace contests and query their state
 interface IJokeRaceContest {
     /// @notice Represents the current state of a contest
     /// @dev Used to control valid operations at different stages
@@ -44,6 +46,14 @@ interface IJokeRaceContest {
         external
         view
         returns (address author, bool exists, string memory description);
+
+    /// @notice Sorts proposals based on votes and marks tied proposals
+    /// @dev Needed before retrieving the winning proposal
+    function setSortedAndTiedProposals() external;
+
+    /// @notice Returns sorted proposal IDs based on votes
+    /// @return Array of proposal IDs sorted from lowest to highest votes
+    function sortedProposalIds() external view returns (uint256[] memory);
 }
 
 /// @title SwanDebate
@@ -75,12 +85,6 @@ contract SwanDebate is Ownable, Pausable {
 
     /// @notice Thrown when trying to use an unregistered agent
     error AgentNotRegistered();
-
-    /// @notice Thrown when an invalid proposals exist in a debate
-    error InvalidProposalsInDebate();
-
-    /// @notice Thrown when an invalid number of proposals exist in a debate
-    error InvalidProposalCount(uint256 count);
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -130,8 +134,6 @@ contract SwanDebate is Ownable, Pausable {
     struct Debate {
         uint256 agent1Id;
         uint256 agent2Id;
-        uint256 agent1ProposalId;
-        uint256 agent2ProposalId;
         uint256 currentRound;
         uint256 winnerId;
         mapping(uint256 => RoundData) rounds;
@@ -237,15 +239,8 @@ contract SwanDebate is Ownable, Pausable {
             revert ContestInvalidState(contest.state(), IJokeRaceContest.ContestState.Queued);
         }
 
-        uint256[] memory proposalIds = contest.getAllProposalIds();
-        if (proposalIds.length != 2) {
-            revert InvalidProposalCount(proposalIds.length);
-        }
-
         debate.agent1Id = _agent1Id;
         debate.agent2Id = _agent2Id;
-        debate.agent1ProposalId = proposalIds[0];
-        debate.agent2ProposalId = proposalIds[1];
         debate.currentRound = 1;
         debate.winnerId = 0;
 
@@ -324,28 +319,33 @@ contract SwanDebate is Ownable, Pausable {
         emit OracleOutputRecorded(_contest, debate.currentRound, _agentId, _taskId);
     }
 
-    /// @notice Terminates a debate and determines the winner based on JokeRace voting
+    /// @notice Terminates a debate and retrieves the winner from JokeRace contest
+    /// @dev Requires contest state to be `Completed`, sorts proposals, and fetches the winner
     /// @param _contest Address of the JokeRace contest
-    /// @dev Only owner can terminate and contest must be in Completed state
-    function terminateDebate(address _contest)
-        external
-        onlyOwner
-        whenNotPaused
-        onlyActiveDebate(_contest)
-        onlyContestState(_contest, IJokeRaceContest.ContestState.Completed)
-    {
-        Debate storage debate = debates[_contest];
-        if (debate.agent1ProposalId == 0 || debate.agent2ProposalId == 0) {
-            revert InvalidProposalsInDebate();
-        }
-
+    function terminateDebate(address _contest) external onlyOwner whenNotPaused {
         IJokeRaceContest contest = IJokeRaceContest(_contest);
-        (uint256 winnerId, uint256 winningVotes) = _determineWinner(contest, debate);
+        require(contest.state() == IJokeRaceContest.ContestState.Completed, "Contest not finished");
 
-        agents[winnerId].wins++;
-        debate.winnerId = winnerId;
+        // Sort proposals based on votes before retrieving the winner
+        contest.setSortedAndTiedProposals();
+        uint256[] memory sortedProposals = contest.sortedProposalIds();
 
-        emit DebateTerminated(_contest, winnerId, winningVotes);
+        require(sortedProposals.length > 0, "No proposals found");
+
+        // The last proposal in the sorted array has the highest votes
+        uint256 winningProposal = sortedProposals[sortedProposals.length - 1];
+
+        // Get proposal IDs dynamically from JokeRace
+        uint256[] memory proposalIds = contest.getAllProposalIds();
+
+        // Determine which agent corresponds to the winning proposal
+        uint256 winnerId = (proposalIds[0] == winningProposal) ? debates[_contest].agent1Id : debates[_contest].agent2Id;
+
+        // Store the winner
+        debates[_contest].winnerId = winnerId;
+
+        (uint256 forVotes,) = contest.proposalVotes(winningProposal);
+        emit DebateTerminated(_contest, winnerId, forVotes);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -409,33 +409,5 @@ contract SwanDebate is Ownable, Pausable {
     /// @return agentContests Array of contest addresses the agent participated in
     function getAgentDebates(uint256 _agentId) external view returns (address[] memory agentContests) {
         return agentDebates[_agentId];
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            INTERNAL FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Determines the winner of a debate based on JokeRace voting results
-    /// @param _contest JokeRace contest interface
-    /// @param debate Debate storage to determine winner from
-    /// @return winnerId The ID of the winning agent
-    /// @return highestVotes The number of net votes received by winner
-    /// @dev Calculates net votes (for - against) for each proposal and compares them
-    function _determineWinner(IJokeRaceContest _contest, Debate storage debate)
-        internal
-        view
-        returns (uint256 winnerId, uint256 highestVotes)
-    {
-        (uint256 forVotes1, uint256 againstVotes1) = _contest.proposalVotes(debate.agent1ProposalId);
-        (uint256 forVotes2, uint256 againstVotes2) = _contest.proposalVotes(debate.agent2ProposalId);
-
-        int256 netVotes1 = int256(forVotes1) - int256(againstVotes1);
-        int256 netVotes2 = int256(forVotes2) - int256(againstVotes2);
-
-        if (netVotes1 >= netVotes2) {
-            return (debate.agent1Id, uint256(netVotes1));
-        } else {
-            return (debate.agent2Id, uint256(netVotes2));
-        }
     }
 }
