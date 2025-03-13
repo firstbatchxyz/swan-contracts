@@ -86,6 +86,9 @@ contract SwanDebate is Ownable, Pausable {
     /// @notice Thrown when trying to use an unregistered agent
     error AgentNotRegistered();
 
+    /// @notice Thrown when an invalid number of proposals exist in a debate
+    error InvalidProposalCount(uint256 count);
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -134,6 +137,8 @@ contract SwanDebate is Ownable, Pausable {
     struct Debate {
         uint256 agent1Id;
         uint256 agent2Id;
+        uint256 agent1ProposalId;
+        uint256 agent2ProposalId;
         uint256 currentRound;
         uint256 winnerId;
         mapping(uint256 => RoundData) rounds;
@@ -239,8 +244,15 @@ contract SwanDebate is Ownable, Pausable {
             revert ContestInvalidState(contest.state(), IJokeRaceContest.ContestState.Queued);
         }
 
+        uint256[] memory proposalIds = contest.getAllProposalIds();
+        if (proposalIds.length != 2) {
+            revert InvalidProposalCount(proposalIds.length);
+        }
+
         debate.agent1Id = _agent1Id;
         debate.agent2Id = _agent2Id;
+        debate.agent1ProposalId = proposalIds[0];
+        debate.agent2ProposalId = proposalIds[1];
         debate.currentRound = 1;
         debate.winnerId = 0;
 
@@ -335,11 +347,9 @@ contract SwanDebate is Ownable, Pausable {
         // The last proposal in the sorted array has the highest votes
         uint256 winningProposal = sortedProposals[sortedProposals.length - 1];
 
-        // Get proposal IDs dynamically from JokeRace
-        uint256[] memory proposalIds = contest.getAllProposalIds();
-
-        // Determine which agent corresponds to the winning proposal
-        uint256 winnerId = (proposalIds[0] == winningProposal) ? debates[_contest].agent1Id : debates[_contest].agent2Id;
+        uint256 winnerId = (debates[_contest].agent1ProposalId == winningProposal)
+            ? debates[_contest].agent1Id
+            : debates[_contest].agent2Id;
 
         // Store the winner
         debates[_contest].winnerId = winnerId;
