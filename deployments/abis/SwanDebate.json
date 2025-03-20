@@ -106,6 +106,16 @@
         "internalType": "uint256"
       },
       {
+        "name": "agent1ProposalId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "agent2ProposalId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
         "name": "currentRound",
         "type": "uint256",
         "internalType": "uint256"
@@ -735,6 +745,17 @@
     "inputs": [
       {
         "name": "agentId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidProposalCount",
+    "inputs": [
+      {
+        "name": "count",
         "type": "uint256",
         "internalType": "uint256"
       }

@@ -33,13 +33,8 @@ contract MockJokeRaceContest is IJokeRaceContest {
         }
     }
 
-    function proposalVotes(uint256 proposalId)
-        external
-        view
-        override
-        returns (uint256 forVotes, uint256 againstVotes)
-    {
-        return (_votes[proposalId], 0);
+    function proposalVotes(uint256 proposalId) external view override returns (uint256 votes) {
+        return (_votes[proposalId]);
     }
 
     function getAllProposalIds() external view override returns (uint256[] memory) {
@@ -62,24 +57,5 @@ contract MockJokeRaceContest is IJokeRaceContest {
             }
         }
         return false;
-    }
-
-    /// @notice Sort proposals by votes (ascending order)
-    function setSortedAndTiedProposals() external override {
-        uint256 length = _proposalIds.length;
-        _sortedProposals = _proposalIds; // Copy proposal IDs
-
-        for (uint256 i = 0; i < length; i++) {
-            for (uint256 j = i + 1; j < length; j++) {
-                if (_votes[_sortedProposals[i]] > _votes[_sortedProposals[j]]) {
-                    (_sortedProposals[i], _sortedProposals[j]) = (_sortedProposals[j], _sortedProposals[i]);
-                }
-            }
-        }
-    }
-
-    /// @notice Returns sorted proposal IDs based on votes
-    function sortedProposalIds() external view override returns (uint256[] memory) {
-        return _sortedProposals;
     }
 }

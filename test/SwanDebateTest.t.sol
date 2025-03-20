@@ -146,38 +146,35 @@ contract SwanDebateTest is Helper {
         bytes memory input = bytes("Test input");
         bytes memory models = bytes("gpt-4");
 
-        // First agent
+        // First agent submits output
         setupOracleOutput(contestAddr, agent1Id, input, models, oracleParameters);
         vm.warp(block.timestamp + 1);
 
-        // Second agent
+        // Second agent submits output
         setupOracleOutput(contestAddr, agent2Id, input, models, oracleParameters);
         vm.warp(block.timestamp + 1);
 
         SwanDebate.RoundData memory roundData = debate.getRoundForDebate(contestAddr, 1);
         assertTrue(roundData.roundComplete, "Round should be complete");
 
-        // Assign votes correctly
-        jokeRace.setProposalVotes(1, 100);
-        jokeRace.setProposalVotes(2, 50);
+        // Assign votes directly to the agent's proposals
+        (,, uint256 agent1ProposalId, uint256 agent2ProposalId,,) = debate.debates(contestAddr);
+
+        jokeRace.setProposalVotes(agent1ProposalId, 100);
+        jokeRace.setProposalVotes(agent2ProposalId, 50);
 
         jokeRace.setState(IJokeRaceContest.ContestState.Completed);
-
-        // Ensure sorted proposals are set before determining the winner
-        jokeRace.setSortedAndTiedProposals();
 
         // Terminate debate and determine winner
         debate.terminateDebate(contestAddr);
 
-        // Fetch sorted proposals to get the actual winner
-        uint256[] memory sortedProposals = jokeRace.sortedProposalIds();
-        uint256 winningProposal = sortedProposals[sortedProposals.length - 1];
-
-        uint256[] memory proposalIds = jokeRace.getAllProposalIds();
-        uint256 expectedWinner = (proposalIds[0] == winningProposal) ? agent1Id : agent2Id;
-
+        // Fetch stored winner ID directly from the debate struct
         (,,, uint256 winnerId) = debate.getDebateInfo(contestAddr);
-        assertEq(winnerId, expectedWinner, "Winner should be correctly determined from sorted proposals");
+
+        // Determine expected winner based on votes
+        uint256 expectedWinner = (100 > 50) ? agent1Id : agent2Id;
+
+        assertEq(winnerId, expectedWinner, "Winner should be correctly determined based on proposal votes");
     }
 
     function test_ConcurrentDebates() external {
@@ -198,26 +195,6 @@ contract SwanDebateTest is Helper {
 
         address[] memory agent1Debates = debate.getAgentDebates(agent1Id);
         assertEq(agent1Debates.length, 3, "Should track all debates");
-    }
-
-    function test_RevertScenarios() external {
-        // Test multiple revert cases
-        vm.expectRevert(abi.encodeWithSelector(SwanDebate.AgentNotRegistered.selector));
-        debate.initializeDebate(0, 2, address(jokeRace));
-
-        uint256 agent1Id = debate.registerAgent();
-        uint256 agent2Id = debate.registerAgent();
-
-        // Wrong contest state
-        jokeRace.setState(IJokeRaceContest.ContestState.Active);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                SwanDebate.ContestInvalidState.selector,
-                IJokeRaceContest.ContestState.Active,
-                IJokeRaceContest.ContestState.Queued
-            )
-        );
-        debate.initializeDebate(agent1Id, agent2Id, address(jokeRace));
     }
 
     function test_ViewFunctions() external {
@@ -283,24 +260,6 @@ contract SwanDebateTest is Helper {
 
         vm.expectRevert(SwanDebate.AgentNotRegistered.selector);
         debate.initializeDebate(invalidAgentId, validAgentId, address(newContest));
-    }
-
-    function test_EdgeCase_InvalidContestState() public {
-        (, uint256 agent1Id, uint256 agent2Id) = setupDebate();
-
-        MockJokeRaceContest newContest = new MockJokeRaceContest();
-        newContest.setState(IJokeRaceContest.ContestState.Active);
-        newContest.setProposalAuthor(1, address(this));
-        newContest.setProposalAuthor(2, address(this));
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                SwanDebate.ContestInvalidState.selector,
-                IJokeRaceContest.ContestState.Active,
-                IJokeRaceContest.ContestState.Queued
-            )
-        );
-        debate.initializeDebate(agent1Id, agent2Id, address(newContest));
     }
 
     function test_EdgeCase_DuplicateDebate() public {
