@@ -29,9 +29,8 @@ interface IJokeRaceContest {
 
     /// @notice Returns vote counts for a proposal
     /// @param proposalId The ID of the proposal to query
-    /// @return forVotes Number of votes in favor
-    /// @return againstVotes Number of votes against
-    function proposalVotes(uint256 proposalId) external view returns (uint256 forVotes, uint256 againstVotes);
+    /// @return votes Number of votes
+    function proposalVotes(uint256 proposalId) external view returns (uint256 votes);
 
     /// @notice Returns all proposal IDs in the contest
     /// @return Array of proposal IDs
@@ -46,14 +45,6 @@ interface IJokeRaceContest {
         external
         view
         returns (address author, bool exists, string memory description);
-
-    /// @notice Sorts proposals based on votes and marks tied proposals
-    /// @dev Needed before retrieving the winning proposal
-    function setSortedAndTiedProposals() external;
-
-    /// @notice Returns sorted proposal IDs based on votes
-    /// @return Array of proposal IDs sorted from lowest to highest votes
-    function sortedProposalIds() external view returns (uint256[] memory);
 }
 
 /// @title SwanDebate
@@ -240,9 +231,6 @@ contract SwanDebate is Ownable, Pausable {
         if (debate.currentRound != 0) revert DebateAlreadyExists(_contest);
 
         IJokeRaceContest contest = IJokeRaceContest(_contest);
-        if (contest.state() != IJokeRaceContest.ContestState.Queued) {
-            revert ContestInvalidState(contest.state(), IJokeRaceContest.ContestState.Queued);
-        }
 
         uint256[] memory proposalIds = contest.getAllProposalIds();
         if (proposalIds.length != 2) {
@@ -335,27 +323,24 @@ contract SwanDebate is Ownable, Pausable {
     /// @dev Requires contest state to be `Completed`, sorts proposals, and fetches the winner
     /// @param _contest Address of the JokeRace contest
     function terminateDebate(address _contest) external onlyOwner whenNotPaused {
+        Debate storage debate = debates[_contest];
         IJokeRaceContest contest = IJokeRaceContest(_contest);
-        require(contest.state() == IJokeRaceContest.ContestState.Completed, "Contest not finished");
 
-        // Sort proposals based on votes before retrieving the winner
-        contest.setSortedAndTiedProposals();
-        uint256[] memory sortedProposals = contest.sortedProposalIds();
+        uint256 agent1ProposalVotes = contest.proposalVotes(debate.agent1ProposalId);
+        uint256 agent2ProposalVotes = contest.proposalVotes(debate.agent2ProposalId);
 
-        require(sortedProposals.length > 0, "No proposals found");
+        uint256 winnerId;
+        if (agent1ProposalVotes >= agent2ProposalVotes) {
+            winnerId = debate.agent1Id;
+        } else {
+            winnerId = debate.agent2Id;
+        }
 
-        // The last proposal in the sorted array has the highest votes
-        uint256 winningProposal = sortedProposals[sortedProposals.length - 1];
+        debate.winnerId = winnerId;
 
-        uint256 winnerId = (debates[_contest].agent1ProposalId == winningProposal)
-            ? debates[_contest].agent1Id
-            : debates[_contest].agent2Id;
-
-        // Store the winner
-        debates[_contest].winnerId = winnerId;
-
-        (uint256 forVotes,) = contest.proposalVotes(winningProposal);
-        emit DebateTerminated(_contest, winnerId, forVotes);
+        emit DebateTerminated(
+            _contest, winnerId, agent1ProposalVotes >= agent2ProposalVotes ? agent1ProposalVotes : agent2ProposalVotes
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
