@@ -6,6 +6,7 @@ import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {SwanAgent} from "./SwanAgent.sol";
 import {LLMOracleCoordinator} from "@firstbatch/dria-oracle-contracts/LLMOracleCoordinator.sol";
 import {LLMOracleTaskParameters} from "@firstbatch/dria-oracle-contracts/LLMOracleTask.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// @notice Interface for JokeRace contest interactions
 /// @dev Provides functions to interact with JokeRace contests and query their state
@@ -337,6 +338,7 @@ contract SwanDebate is Ownable, Pausable {
         }
 
         debate.winnerId = winnerId;
+        agents[winnerId].wins += 1;
 
         emit DebateTerminated(
             _contest, winnerId, agent1ProposalVotes >= agent2ProposalVotes ? agent1ProposalVotes : agent2ProposalVotes
@@ -404,5 +406,14 @@ contract SwanDebate is Ownable, Pausable {
     /// @return agentContests Array of contest addresses the agent participated in
     function getAgentDebates(uint256 _agentId) external view returns (address[] memory agentContests) {
         return agentDebates[_agentId];
+    }
+
+    /// @notice Approves a spender to spend a certain amount of the specified fee token
+    /// @dev Only the contract owner can call this function
+    /// @param feeToken The address of the ERC20 token to approve
+    /// @param spender The address allowed to spend the tokens
+    /// @param amount The amount of tokens to approve for the spender
+    function approveFeeToken(address feeToken, address spender, uint256 amount) external onlyOwner {
+        IERC20(feeToken).approve(spender, amount);
     }
 }
