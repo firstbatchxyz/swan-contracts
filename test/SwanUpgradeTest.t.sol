@@ -94,11 +94,9 @@ contract SwanUpgradeTest is Test {
 
         assertEq(currentImplementation, address(swanImplementationV2));
 
-        // Post-upgrade checks to ensure all state is preserved
         assertEq(address(proxy.agentFactory()), address(agentFactory));
         assertEq(address(proxy.artifactFactory()), address(artifactFactory));
 
-        // Test functionality after upgrade
         vm.startPrank(owner);
         address newAgentFactory = address(new MockSwanAgentFactory());
         address newArtifactFactory = address(new MockSwanArtifactFactory());
@@ -118,7 +116,7 @@ contract SwanUpgradeTest is Test {
 
         // Try to upgrade from a non-owner account
         vm.startPrank(user);
-        vm.expectRevert(); // Should revert due to onlyOwner
+        vm.expectRevert();
         proxy.upgradeToAndCall(address(swanImplementationV2), "");
         vm.stopPrank();
     }
