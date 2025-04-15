@@ -165,6 +165,7 @@ The chain ID is 8453 for Base Mainnet, and 84532 for Base Sepolia.
 
 ### Upgrade Contract
 
+#### Using single-sig wallet
 Upgrading an existing contract is done as per the instructions in [openzeppelin-foundry-upgrades](https://github.com/OpenZeppelin/openzeppelin-foundry-upgrades) repository.
 
 First, we create a new contract with its name as `ContractNameV2`, and then we execute the following command:
@@ -185,6 +186,46 @@ forge script ./script/Deploy.s.sol:Upgrade<CONTRACT_NAME> \
 > ```sh
 > cast wallet address --account <WALLET_NAME>
 > ```
+
+#### Using multisig wallet (Our currrent approach with Gnosis Safe multisig)
+
+To upgrade your Swan UUPS contract via a Gnosis multisig, follow these steps:
+
+1. **Deploy the new implementation contract**
+   Execute the deployment script to get the new implementation address:
+
+   ```sh
+   forge script ./script/Deploy.s.sol:DeploySwanImpl \
+   --rpc-url <RPC_URL> \
+   --account <WALLET_NAME> --broadcast \
+   --sender <WALLET_ADDRESS> \
+   --verify --verifier blockscout \
+   --verifier-url <VERIFIER_URL>
+   ```
+
+2. **Generate upgrade calldata**
+
+   Once you have the new implementation address, generate the calldata for the Gnosis multisig:
+
+   ```sh
+   cast calldata "upgradeToAndCall(address,bytes)" 0xNewImplementationAddress 0x
+   ```
+
+   This will output something like:
+   ```
+      0x4f1ef28600000000000000000000000017b6d1eddcd5f9ca19bb2ffed2f3deb6bd74bd2000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000
+   ```
+
+3. **Submit transaction to Gnosis Safe**
+
+   Create a new transaction in the Gnosis Safe interface with:
+   - **To**: Your Swan proxy address
+   - **Value**: 0 ETH
+   - **Data**: The calldata generated in step 2
+
+4. **Execute the transaction**
+
+   Have the required signers approve the transaction, then execute it to complete the upgrade.
 
 ## Testing & Diagnostics
 
