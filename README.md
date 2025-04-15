@@ -208,12 +208,12 @@ To upgrade your Swan UUPS contract via a Gnosis multisig, follow these steps:
    Once you have the new implementation address, generate the calldata for the Gnosis multisig:
 
    ```sh
-   cast calldata "upgradeTo(address)" 0xNewImplementationAddress
+   cast calldata "upgradeToAndCall(address,bytes)" 0xNewImplementationAddress 0x
    ```
 
    This will output something like:
    ```
-   0x3659cfe6000000000000000000000000a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
+      0x4f1ef28600000000000000000000000017b6d1eddcd5f9ca19bb2ffed2f3deb6bd74bd2000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000
    ```
 
 3. **Submit transaction to Gnosis Safe**
