@@ -199,6 +199,15 @@ contract HelperConfig is Script {
         return (swanProxy, swanImplementation);
     }
 
+    function deploySwanImpl() external returns (address impl) {
+        vm.startBroadcast();
+        Swan newImplementation = new Swan();
+        vm.stopBroadcast();
+
+        // console.log("New implementation address:", address(newImplementation));
+        return address(newImplementation);
+    }
+
     function deploySwanLottery() external returns (address) {
         // read Swan proxy address from deployments file
         string memory dir = "deployments/";
